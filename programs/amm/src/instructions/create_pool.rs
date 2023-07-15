@@ -1,7 +1,8 @@
 use crate::libraries::tick_math;
 use crate::states::*;
 use anchor_lang::prelude::*;
-use anchor_spl::token::{Mint, Token, TokenAccount};
+use anchor_spl::token_interface::Token2022;
+use anchor_spl::token_interface::{InterfaceAccount, Mint, Token, TokenAccount};
 
 #[derive(Accounts)]
 pub struct CreatePool<'info> {
@@ -31,10 +32,10 @@ pub struct CreatePool<'info> {
     #[account(
         constraint = token_mint_0.key() < token_mint_1.key()
     )]
-    pub token_mint_0: Box<Account<'info, Mint>>,
+    pub token_mint_0: Box<Account<'info, InterfaceAccount>>,
 
     /// Token_1 mint
-    pub token_mint_1: Box<Account<'info, Mint>>,
+    pub token_mint_1: Box<Account<'info, InterfaceAccount>>,
 
     /// Token_0 vault for the pool
     #[account(
@@ -70,7 +71,7 @@ pub struct CreatePool<'info> {
     pub observation_state: UncheckedAccount<'info>,
 
     /// Spl token program
-    pub token_program: Program<'info, Token>,
+    pub token_program: Program<'info, Token2022>,
     /// To create a new program account
     pub system_program: Program<'info, System>,
     /// Sysvar for program account

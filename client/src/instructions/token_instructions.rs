@@ -20,7 +20,7 @@ pub fn create_and_init_mint_instr(
     let url = Cluster::Custom(config.http_url.clone(), config.ws_url.clone());
     // Client.
     let client = Client::new(url, Rc::new(payer));
-    let program = client.program(spl_token::id());
+    let program = client.program(spl_token_2022::id());
 
     let instructions = program
         .request()
@@ -29,11 +29,11 @@ pub fn create_and_init_mint_instr(
             mint_key,
             program
                 .rpc()
-                .get_minimum_balance_for_rent_exemption(spl_token::state::Mint::LEN)?,
-            spl_token::state::Mint::LEN as u64,
+                .get_minimum_balance_for_rent_exemption(spl_token_2022::state::Mint::LEN)?,
+            spl_token_2022::state::Mint::LEN as u64,
             &program.id(),
         ))
-        .instruction(spl_token::instruction::initialize_mint(
+        .instruction(spl_token_2022::instruction::initialize_mint(
             &program.id(),
             mint_key,
             mint_authority,
@@ -79,7 +79,7 @@ pub fn create_ata_token_account_instr(
     let url = Cluster::Custom(config.http_url.clone(), config.ws_url.clone());
     // Client.
     let client = Client::new(url, Rc::new(payer));
-    let program = client.program(spl_token::id());
+    let program = client.program(spl_token_2022::id());
     let instructions = program
         .request()
         .instruction(
@@ -87,7 +87,7 @@ pub fn create_ata_token_account_instr(
                 &program.payer(),
                 owner,
                 mint,
-                &spl_token::ID,
+                &spl_token_2022::id,
             ),
         )
         .instructions()?;
@@ -113,11 +113,11 @@ pub fn create_and_init_spl_token(
             &mint,
             program
                 .rpc()
-                .get_minimum_balance_for_rent_exemption(spl_token::state::Account::LEN)?,
-            spl_token::state::Account::LEN as u64,
+                .get_minimum_balance_for_rent_exemption(spl_token_2022::state::Account::LEN)?,
+            spl_token_2022::state::Account::LEN as u64,
             &program.id(),
         ))
-        .instruction(spl_token::instruction::initialize_account(
+        .instruction(spl_token_2022::instruction::initialize_account(
             &program.id(),
             new_account_key,
             mint,
@@ -137,10 +137,10 @@ pub fn close_token_account(
     let url = Cluster::Custom(config.http_url.clone(), config.ws_url.clone());
     // Client.
     let client = Client::new(url, Rc::new(payer));
-    let program = client.program(spl_token::id());
+    let program = client.program(spl_token_2022::id());
     let instructions = program
         .request()
-        .instruction(spl_token::instruction::close_account(
+        .instruction(spl_token_2022::instruction::close_account(
             &program.id(),
             close_account,
             destination,
@@ -163,10 +163,10 @@ pub fn spl_token_transfer_instr(
     let url = Cluster::Custom(config.http_url.clone(), config.ws_url.clone());
     // Client.
     let client = Client::new(url, Rc::new(payer));
-    let program = client.program(spl_token::id());
+    let program = client.program(spl_token_2022::id());
     let instructions = program
         .request()
-        .instruction(spl_token::instruction::transfer(
+        .instruction(spl_token_2022::instruction::transfer(
             &program.id(),
             from,
             to,
@@ -190,10 +190,10 @@ pub fn spl_token_mint_to_instr(
     let url = Cluster::Custom(config.http_url.clone(), config.ws_url.clone());
     // Client.
     let client = Client::new(url, Rc::new(payer));
-    let program = client.program(spl_token::id());
+    let program = client.program(spl_token_2022::id());
     let instructions = program
         .request()
-        .instruction(spl_token::instruction::mint_to(
+        .instruction(spl_token_2022::instruction::mint_to(
             &program.id(),
             mint,
             to,

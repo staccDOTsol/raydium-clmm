@@ -8,7 +8,8 @@ use crate::libraries::{
 use crate::states::*;
 use crate::util::*;
 use anchor_lang::prelude::*;
-use anchor_spl::token::{Token, TokenAccount};
+use anchor_spl::token_interface::Token2022;
+use anchor_spl::token_interface::{InterfaceAccount, Token, TokenAccount};
 use std::cell::RefMut;
 use std::collections::VecDeque;
 #[cfg(feature = "enable-log")]
@@ -49,7 +50,7 @@ pub struct SwapSingle<'info> {
     pub observation_state: AccountLoader<'info, ObservationState>,
 
     /// SPL program for token transfers
-    pub token_program: Program<'info, Token>,
+    pub token_program: Program<'info, Token2022>,
 
     #[account(mut, constraint = tick_array.load()?.pool_id == pool_state.key())]
     pub tick_array: AccountLoader<'info, TickArrayState>,
@@ -72,7 +73,7 @@ pub struct SwapAccounts<'b, 'info> {
     pub output_vault: Box<Account<'info, TokenAccount>>,
 
     /// SPL program for token transfers
-    pub token_program: Program<'info, Token>,
+    pub token_program: Program<'info, Token2022>,
     /// The factory state to read protocol fees
     pub amm_config: &'b Box<Account<'info, AmmConfig>>,
 

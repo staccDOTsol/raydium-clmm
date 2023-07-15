@@ -231,7 +231,7 @@ fn get_nft_account_and_position_by_owner(
     raydium_amm_v3_program: &Pubkey,
 ) -> (Vec<TokenInfo>, Vec<Pubkey>) {
     let all_tokens = client
-        .get_token_accounts_by_owner(owner, TokenAccountsFilter::ProgramId(spl_token::id()))
+        .get_token_accounts_by_owner(owner, TokenAccountsFilter::ProgramId(spl_token_2022::id()))
         .unwrap();
     let mut nft_account = Vec::new();
     let mut user_position_account = Vec::new();
@@ -685,9 +685,9 @@ fn main() -> Result<()> {
                     let load_pubkeys = vec![mint0, mint1];
                     let rsps = rpc_client.get_multiple_accounts(&load_pubkeys)?;
                     let mint0_account =
-                        spl_token::state::Mint::unpack(&rsps[0].as_ref().unwrap().data).unwrap();
+                        spl_token_2022::state::Mint::unpack(&rsps[0].as_ref().unwrap().data).unwrap();
                     let mint1_account =
-                        spl_token::state::Mint::unpack(&rsps[1].as_ref().unwrap().data).unwrap();
+                        spl_token_2022::state::Mint::unpack(&rsps[1].as_ref().unwrap().data).unwrap();
                     let sqrt_price_x64 = price_to_sqrt_price_x64(
                         price,
                         mint0_account.decimals,
@@ -1527,11 +1527,11 @@ fn main() -> Result<()> {
                     let rsps = rpc_client.get_multiple_accounts(&load_accounts)?;
                     let [user_input_account, user_output_account, amm_config_account, pool_account] =
                         array_ref![rsps, 0, 4];
-                    let user_input_state = spl_token::state::Account::unpack(
+                    let user_input_state = spl_token_2022::state::Account::unpack(
                         &user_input_account.as_ref().unwrap().data,
                     )
                     .unwrap();
-                    let user_output_state = spl_token::state::Account::unpack(
+                    let user_output_state = spl_token_2022::state::Account::unpack(
                         &user_output_account.as_ref().unwrap().data,
                     )
                     .unwrap();
@@ -1659,11 +1659,11 @@ fn main() -> Result<()> {
                     let rsps = rpc_client.get_multiple_accounts(&load_accounts)?;
                     let [user_input_account, user_output_account, amm_config_account, pool_account] =
                         array_ref![rsps, 0, 4];
-                    let user_input_state = spl_token::state::Account::unpack(
+                    let user_input_state = spl_token_2022::state::Account::unpack(
                         &user_input_account.as_ref().unwrap().data,
                     )
                     .unwrap();
-                    let user_output_state = spl_token::state::Account::unpack(
+                    let user_output_state = spl_token_2022::state::Account::unpack(
                         &user_output_account.as_ref().unwrap().data,
                     )
                     .unwrap();

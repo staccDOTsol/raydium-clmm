@@ -4,7 +4,7 @@ use crate::states::pool::{reward_period_limit, PoolState, REWARD_NUM};
 use crate::states::*;
 use crate::util::transfer_from_user_to_pool_vault;
 use anchor_lang::prelude::*;
-use anchor_spl::token::{Token, TokenAccount};
+use anchor_spl::token_interface::{InterfaceAccount, Token, TokenAccount};
 
 #[derive(Accounts)]
 pub struct SetRewardParams<'info> {

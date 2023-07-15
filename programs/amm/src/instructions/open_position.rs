@@ -6,9 +6,10 @@ use anchor_lang::prelude::*;
 use anchor_lang::solana_program;
 use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::token;
-use anchor_spl::token::{Mint, Token, TokenAccount};
+use anchor_spl::token_interface::Token2022;
+use anchor_spl::token_interface::{InterfaceAccount, Mint, Token, TokenAccount};
 use mpl_token_metadata::{instruction::create_metadata_accounts_v3, state::Creator};
-use spl_token::instruction::AuthorityType;
+use spl_token_2022::instruction::AuthorityType;
 use std::cell::RefMut;
 #[cfg(feature = "enable-log")]
 use std::convert::identity;
@@ -40,7 +41,7 @@ pub struct AddLiquidityParam<'b, 'info> {
     pub protocol_position: &'b mut Box<Account<'info, ProtocolPositionState>>,
 
     /// The SPL program to perform token transfers
-    pub token_program: Program<'info, Token>,
+    pub token_program: Program<'info, Token2022>,
 }
 
 #[derive(Accounts)]
@@ -60,7 +61,7 @@ pub struct OpenPosition<'info> {
         mint::authority = pool_state.key(),
         payer = payer
     )]
-    pub position_nft_mint: Box<Account<'info, Mint>>,
+    pub position_nft_mint: Box<Account<'info, InterfaceAccount>>,
 
     /// Token account where position NFT will be minted
     #[account(
@@ -164,7 +165,7 @@ pub struct OpenPosition<'info> {
     pub system_program: Program<'info, System>,
 
     /// Program to create mint account and mint tokens
-    pub token_program: Program<'info, Token>,
+    pub token_program: Program<'info, Token2022>,
 
     /// Program to create an ATA for receiving position NFT
     pub associated_token_program: Program<'info, AssociatedToken>,

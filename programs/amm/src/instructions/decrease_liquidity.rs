@@ -4,7 +4,8 @@ use crate::error::ErrorCode;
 use crate::states::*;
 use crate::util::transfer_from_pool_vault_to_user;
 use anchor_lang::prelude::*;
-use anchor_spl::token::{Token, TokenAccount};
+use anchor_spl::token_interface::Token2022;
+use anchor_spl::token_interface::{InterfaceAccount, Token, TokenAccount};
 use std::cell::RefMut;
 
 #[derive(Accounts)]
@@ -75,7 +76,7 @@ pub struct DecreaseLiquidity<'info> {
     pub recipient_token_account_1: Box<Account<'info, TokenAccount>>,
 
     /// SPL program to transfer out tokens
-    pub token_program: Program<'info, Token>,
+    pub token_program: Program<'info, Token2022>,
 }
 
 pub fn decrease_liquidity<'a, 'b, 'c, 'info>(
@@ -319,7 +320,7 @@ pub fn burn_liquidity<'b, 'info>(
 pub fn collect_rewards<'a, 'b, 'c, 'info>(
     pool_state_loader: &AccountLoader<'info, PoolState>,
     remaining_accounts: &[AccountInfo<'info>],
-    token_program: Program<'info, Token>,
+    token_program: Program<'info, Token2022>,
     personal_position_state: &mut PersonalPositionState,
 ) -> Result<[u64; REWARD_NUM]> {
     let mut reward_amounts: [u64; REWARD_NUM] = [0, 0, 0];

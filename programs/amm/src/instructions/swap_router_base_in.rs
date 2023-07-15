@@ -2,7 +2,8 @@ use super::{exact_internal, SwapAccounts};
 use crate::error::ErrorCode;
 use crate::states::*;
 use anchor_lang::prelude::*;
-use anchor_spl::token::{Token, TokenAccount};
+use anchor_spl::token_interface::Token2022;
+use anchor_spl::token_interface::{InterfaceAccount, Token, TokenAccount};
 
 #[derive(Accounts)]
 pub struct SwapRouterBaseIn<'info> {
@@ -14,7 +15,7 @@ pub struct SwapRouterBaseIn<'info> {
     pub input_token_account: Account<'info, TokenAccount>,
 
     /// SPL program for token transfers
-    pub token_program: Program<'info, Token>,
+    pub token_program: Program<'info, Token2022>,
 }
 
 pub fn swap_router_base_in<'a, 'b, 'c, 'info>(

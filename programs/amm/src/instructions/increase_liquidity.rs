@@ -3,7 +3,8 @@ use crate::error::ErrorCode;
 use crate::libraries::{big_num::U128, fixed_point_64, full_math::MulDiv};
 use crate::states::*;
 use anchor_lang::prelude::*;
-use anchor_spl::token::{Token, TokenAccount};
+use anchor_spl::token_interface::Token2022;
+use anchor_spl::token_interface::{InterfaceAccount, Token, TokenAccount};
 #[derive(Accounts)]
 pub struct IncreaseLiquidity<'info> {
     /// Pays to mint the position
@@ -72,7 +73,7 @@ pub struct IncreaseLiquidity<'info> {
     pub token_vault_1: Box<Account<'info, TokenAccount>>,
 
     /// Program to create mint account and mint tokens
-    pub token_program: Program<'info, Token>,
+    pub token_program: Program<'info, Token2022>,
 }
 
 pub fn increase_liquidity<'a, 'b, 'c, 'info>(

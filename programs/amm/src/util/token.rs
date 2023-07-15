@@ -1,6 +1,6 @@
 use crate::states::*;
 use anchor_lang::prelude::*;
-use anchor_spl::token::{self, Burn, CloseAccount, Mint, Token, TokenAccount, Transfer};
+use anchor_spl::token_interface::{InterfaceAccount, self, Burn, CloseAccount, Mint, Token, TokenAccount, Transfer};
 
 pub fn transfer_from_user_to_pool_vault<'info>(
     signer: &Signer<'info>,
@@ -77,7 +77,7 @@ pub fn close_spl_account<'a, 'b, 'c, 'info>(
 
 pub fn burn<'a, 'b, 'c, 'info>(
     owner: &Signer<'info>,
-    mint: &Account<'info, Mint>,
+    mint: &Account<'info, InterfaceAccount>,
     burn_account: &Account<'info, TokenAccount>,
     token_program: &Program<'info, Token>,
     signers_seeds: &[&[&[u8]]],

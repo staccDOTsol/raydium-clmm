@@ -3,7 +3,8 @@ use crate::error::ErrorCode;
 use crate::states::*;
 use crate::util::*;
 use anchor_lang::prelude::*;
-use anchor_spl::token::{Token, TokenAccount};
+use anchor_spl::token_interface::Token2022;
+use anchor_spl::token_interface::{InterfaceAccount, Token, TokenAccount};
 #[derive(Accounts)]
 pub struct CollectFundFee<'info> {
     /// Only admin or fund_owner can collect fee now
@@ -41,7 +42,7 @@ pub struct CollectFundFee<'info> {
     pub recipient_token_account_1: Account<'info, TokenAccount>,
 
     /// The SPL program to perform token transfers
-    pub token_program: Program<'info, Token>,
+    pub token_program: Program<'info, Token2022>,
 }
 
 pub fn collect_fund_fee(

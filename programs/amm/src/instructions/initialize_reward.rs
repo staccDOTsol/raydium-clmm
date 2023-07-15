@@ -3,7 +3,8 @@ use crate::libraries::{fixed_point_64, full_math::MulDiv, U256};
 use crate::states::*;
 use crate::util::transfer_from_user_to_pool_vault;
 use anchor_lang::prelude::*;
-use anchor_spl::token::{self, Mint, Token, TokenAccount};
+use anchor_spl::token_interface::Token2022;
+use anchor_spl::token_interface::{InterfaceAccount, self, Mint, Token, TokenAccount};
 
 #[derive(Accounts)]
 pub struct InitializeReward<'info> {
@@ -36,7 +37,7 @@ pub struct InitializeReward<'info> {
     pub operation_state: AccountLoader<'info, OperationState>,
 
     /// Reward mint
-    pub reward_token_mint: Box<Account<'info, Mint>>,
+    pub reward_token_mint: Box<Account<'info, InterfaceAccount>>,
 
     /// A pda, reward vault
     #[account(
@@ -54,7 +55,7 @@ pub struct InitializeReward<'info> {
     pub reward_token_vault: Box<Account<'info, TokenAccount>>,
 
     #[account(address = token::ID)]
-    pub token_program: Program<'info, Token>,
+    pub token_program: Program<'info, Token2022>,
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
 }

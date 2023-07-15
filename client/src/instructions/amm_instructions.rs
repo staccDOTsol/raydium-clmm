@@ -169,7 +169,7 @@ pub fn create_pool_instr(
             token_vault_0,
             token_vault_1,
             observation_state: observation_key,
-            token_program: spl_token::id(),
+            token_program: spl_token_2022::id(),
             system_program: system_program::id(),
             rent: sysvar::rent::id(),
         })
@@ -261,7 +261,7 @@ pub fn open_position_instr(
             token_vault_1,
             rent: sysvar::rent::id(),
             system_program: system_program::id(),
-            token_program: spl_token::id(),
+            token_program: spl_token_2022::id(),
             associated_token_program: spl_associated_token_account::id(),
             metadata_program: mpl_token_metadata::id(),
         })
@@ -345,7 +345,7 @@ pub fn increase_liquidity_instr(
             token_account_1: user_token_account_1,
             token_vault_0,
             token_vault_1,
-            token_program: spl_token::id(),
+            token_program: spl_token_2022::id(),
         })
         .args(raydium_instruction::IncreaseLiquidity {
             liquidity,
@@ -423,7 +423,7 @@ pub fn decrease_liquidity_instr(
             tick_array_upper,
             recipient_token_account_0: user_token_account_0,
             recipient_token_account_1: user_token_account_1,
-            token_program: spl_token::id(),
+            token_program: spl_token_2022::id(),
         })
         .accounts(remaining_accounts)
         .args(raydium_instruction::DecreaseLiquidity {
@@ -458,7 +458,7 @@ pub fn close_personal_position_instr(
             position_nft_account: nft_ata_token_account,
             personal_position: personal_position_key,
             system_program: system_program::id(),
-            token_program: spl_token::id(),
+            token_program: spl_token_2022::id(),
         })
         .args(raydium_instruction::ClosePosition)
         .instructions()?;
@@ -498,7 +498,7 @@ pub fn swap_instr(
             output_vault,
             tick_array,
             observation_state,
-            token_program: spl_token::id(),
+            token_program: spl_token_2022::id(),
         })
         .accounts(remaining_accounts)
         .args(raydium_instruction::Swap {
@@ -539,7 +539,7 @@ pub fn initialize_reward_instr(
             operation_state: operation_account_key,
             reward_token_mint,
             reward_token_vault,
-            token_program: spl_token::id(),
+            token_program: spl_token_2022::id(),
             system_program: system_program::id(),
             rent: sysvar::rent::id(),
         })
@@ -575,7 +575,7 @@ pub fn set_reward_params_instr(
     let remaining_accounts = vec![
         AccountMeta::new(reward_token_vault, false),
         AccountMeta::new(user_reward_token, false),
-        AccountMeta::new_readonly(spl_token::id(), false),
+        AccountMeta::new_readonly(spl_token_2022::id(), false),
     ];
 
     let instructions = program
