@@ -11,16 +11,16 @@ use states::*;
 use util::access_control::*;
 
 #[cfg(feature = "devnet")]
-declare_id!("devi51mZmdwUJGU9hjN27vEz64Gps7uUefqxg27EAtH");
+declare_id!("GHpwXWcfwLUDhzaSK6Tgn2FrsEfE8azL4VSuG3sqFNgD");
 #[cfg(not(feature = "devnet"))]
-declare_id!("CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK");
+declare_id!("GHpwXWcfwLUDhzaSK6Tgn2FrsEfE8azL4VSuG3sqFNgD");
 
 pub mod admin {
     use anchor_lang::prelude::declare_id;
     #[cfg(feature = "devnet")]
-    declare_id!("adMCyoCgfkg7bQiJ9aBJ59H3BXLY3r5LNLfPpQfMzBe");
+    declare_id!("7ihN8QaTfNoDTRTQGULCzbUT3PHwPDTu5Brcu4iT2paP");
     #[cfg(not(feature = "devnet"))]
-    declare_id!("GThUX1Atko4tqhN2NaiTazWSeFWMuiUvfFnyJyUghFMJ");
+    declare_id!("7ihN8QaTfNoDTRTQGULCzbUT3PHwPDTu5Brcu4iT2paP");
 }
 
 #[program]
@@ -270,6 +270,7 @@ pub mod amm_v3 {
         liquidity: u128,
         amount_0_max: u64,
         amount_1_max: u64,
+        direction: PositionDirection,
     ) -> Result<()> {
         instructions::open_position_v1(
             ctx,
@@ -282,6 +283,7 @@ pub mod amm_v3 {
             tick_array_upper_start_index,
             true,
             None,
+            direction
         )
     }
 
@@ -310,6 +312,7 @@ pub mod amm_v3 {
         amount_1_max: u64,
         with_matedata: bool,
         base_flag: Option<bool>,
+        direction: PositionDirection,
     ) -> Result<()> {
         instructions::open_position_v2(
             ctx,
@@ -322,6 +325,7 @@ pub mod amm_v3 {
             tick_array_upper_start_index,
             with_matedata,
             base_flag,
+            direction
         )
     }
 

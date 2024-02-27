@@ -638,12 +638,12 @@ pub fn collect_rewards<'a, 'b, 'c, 'info>(
         }
         pool_state_loader
             .load()?
-            .check_unclaimed_reward(i, reward_amount_owed)?;
+            .check_unclaimed_reward(i, reward_amount_owed.try_into().unwrap())?;
 
-        let transfer_amount = if reward_amount_owed > reward_token_vault.amount {
+        let transfer_amount = if reward_amount_owed > reward_token_vault.amount.try_into().unwrap() {
             reward_token_vault.amount
         } else {
-            reward_amount_owed
+            reward_amount_owed.try_into().unwrap()
         };
 
         if transfer_amount > 0 {
@@ -654,7 +654,7 @@ pub fn collect_rewards<'a, 'b, 'c, 'info>(
                 reward_amount_owed
             );
             personal_position_state.reward_infos[i].reward_amount_owed =
-                reward_amount_owed.checked_sub(transfer_amount).unwrap();
+                reward_amount_owed.checked_sub(transfer_amount.try_into().unwrap()).unwrap();
             pool_state_loader
                 .load_mut()?
                 .add_reward_clamed(i, transfer_amount)?;

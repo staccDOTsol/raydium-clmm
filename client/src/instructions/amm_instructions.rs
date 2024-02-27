@@ -2,10 +2,11 @@ use anchor_client::{Client, Cluster};
 use anchor_lang::prelude::AccountMeta;
 use anyhow::Result;
 use mpl_token_metadata::state::PREFIX as MPL_PREFIX;
+use raydium_amm_v3::states::PositionDirection;
 use solana_sdk::{
     instruction::Instruction, pubkey::Pubkey, signature::Signer, system_program, sysvar,
 };
-
+use std::str::FromStr;
 use raydium_amm_v3::accounts as raydium_accounts;
 use raydium_amm_v3::instruction as raydium_instruction;
 use raydium_amm_v3::states::{
@@ -160,7 +161,7 @@ pub fn create_pool_instr(
             token_mint_1.to_bytes().as_ref(),
         ],
         &program.id(),
-    );
+    );/*
     let instructions = program
         .request()
         .accounts(raydium_accounts::CreatePool {
@@ -182,8 +183,8 @@ pub fn create_pool_instr(
             sqrt_price_x64,
             open_time,
         })
-        .instructions()?;
-    Ok(instructions)
+        .instructions()?; */
+    Ok(vec![])
 }
 
 pub fn open_position_instr(
@@ -288,6 +289,7 @@ pub fn open_position_instr(
             tick_array_upper_start_index,
             with_matedata,
             base_flag: None,
+            direction: PositionDirection::Long,
         })
         .instructions()?;
     Ok(instructions)
@@ -567,12 +569,16 @@ pub fn swap_v2_instr(
         .accounts(raydium_accounts::SwapSingleV2 {
             payer: program.payer(),
             amm_config,
-            pool_state: pool_account_key,
+            l_state: Pubkey::from_str("G5c3HsRBWHiwVVnHVqzW7BEpLrs12pxPHjytw5ugVveS")?,
+            s_state: Pubkey::from_str("Cz2PFsPHcuphZdqFYB7S2B3CMTqQBaFdSycD89ksYzMY")?,
             input_token_account: user_input_token,
             output_token_account: user_out_put_token,
-            input_vault,
-            output_vault,
-            observation_state,
+            input_vault_l: input_vault,
+            output_vault_l: output_vault,
+            input_vault_s: Pubkey::from_str("9treqnKjCVuvSL7B16prYf8oxppGbmgLXhfJDEswFhVB")?,
+            output_vault_s: Pubkey::from_str("GHFdSwxrC24A7UJHj5Wi215EjjwCZn2kED553LXEgNCB")?,
+            observation_state_l: observation_state,
+            observation_state_s: Pubkey::from_str("D22rEB98Jrag9M4VM53ayEXW2oW7QoED1JCEjUZY7MbJ")?,
             token_program: spl_token::id(),
             token_program_2022: spl_token_2022::id(),
             memo_program: spl_memo::id(),
@@ -586,8 +592,8 @@ pub fn swap_v2_instr(
             sqrt_price_limit_x64: sqrt_price_limit_x64.unwrap_or(0u128),
             is_base_input,
         })
-        .instructions()?;
-    Ok(instructions)
+        .instructions()?; 
+    Ok(vec![])
 }
 
 pub fn initialize_reward_instr(

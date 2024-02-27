@@ -324,6 +324,7 @@ pub fn open_position_v1<'a, 'b, 'c: 'info, 'info>(
     tick_array_upper_start_index: i32,
     with_matedata: bool,
     base_flag: Option<bool>,
+    direction: PositionDirection
 ) -> Result<()> {
     open_position(
         &ctx.accounts.payer,
@@ -360,6 +361,7 @@ pub fn open_position_v1<'a, 'b, 'c: 'info, 'info>(
         tick_array_upper_start_index,
         with_matedata,
         base_flag,
+        direction
     )
 }
 
@@ -374,6 +376,7 @@ pub fn open_position_v2<'a, 'b, 'c: 'info, 'info>(
     tick_array_upper_start_index: i32,
     with_matedata: bool,
     base_flag: Option<bool>,
+    direction: PositionDirection
 ) -> Result<()> {
     open_position(
         &ctx.accounts.payer,
@@ -410,6 +413,7 @@ pub fn open_position_v2<'a, 'b, 'c: 'info, 'info>(
         tick_array_upper_start_index,
         with_matedata,
         base_flag,
+        direction
     )
 }
 
@@ -449,6 +453,7 @@ pub fn open_position<'a, 'b, 'c: 'info, 'info>(
     tick_array_upper_start_index: i32,
     with_matedata: bool,
     base_flag: Option<bool>,
+    direction: PositionDirection
 ) -> Result<()> {
     let mut liquidity = liquidity;
     {
@@ -558,8 +563,13 @@ pub fn open_position<'a, 'b, 'c: 'info, 'info>(
             protocol_position.fee_growth_inside_0_last_x64;
         personal_position.fee_growth_inside_1_last_x64 =
             protocol_position.fee_growth_inside_1_last_x64;
-
+        personal_position.direction = direction;
         // update rewards, must update before update liquidity
+
+        for i in 0..REWARD_NUM {
+            personal_position.reward_infos[i].entry_price = pool_state.sqrt_price_x64;
+            personal_position.reward_infos[i].current_price = pool_state.sqrt_price_x64;
+        }
         personal_position.update_rewards(protocol_position.reward_growth_inside, false)?;
         personal_position.liquidity = liquidity;
 
@@ -756,16 +766,20 @@ pub fn add_liquidity<'b, 'c: 'info, 'info>(
         amount_1,
         amount_1_transfer_fee
     );
-    require_gte!(
-        amount_0_max,
-        amount_0 + amount_0_transfer_fee,
-        ErrorCode::PriceSlippageCheck
-    );
-    require_gte!(
-        amount_1_max,
-        amount_1 + amount_1_transfer_fee,
-        ErrorCode::PriceSlippageCheck
-    );
+    if amount_0_max != 0 {
+        require_gte!(
+            amount_0_max,
+            amount_0 + amount_0_transfer_fee,
+            ErrorCode::PriceSlippageCheck
+        );
+    }
+    if amount_1_max != 0 {
+        require_gte!(
+            amount_1_max,
+            amount_1 + amount_1_transfer_fee,
+            ErrorCode::PriceSlippageCheck
+        );
+    }
     let mut token_2022_program_opt: Option<AccountInfo> = None;
     if token_program_2022.is_some() {
         token_2022_program_opt = Some(token_program_2022.clone().unwrap().to_account_info());

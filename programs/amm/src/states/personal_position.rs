@@ -1,5 +1,6 @@
 use crate::libraries::{big_num::U256, fixed_point_64, full_math::MulDiv};
 use crate::pool::REWARD_NUM;
+use crate::PositionDirection;
 use anchor_lang::prelude::*;
 
 #[account]
@@ -38,12 +39,18 @@ pub struct PersonalPositionState {
     // Position reward info
     pub reward_infos: [PositionRewardInfo; REWARD_NUM],
     // Unused bytes for future upgrades.
-    pub padding: [u64; 8],
+    pub direction: PositionDirection,
+    pub entry_price_long: u128,
+    pub current_price_long: u128,
+    pub entry_price_short: u128,
+    pub current_price_short: u128, // is this what 16 bytes?
+    
 }
 
 impl PersonalPositionState {
     pub const LEN: usize =
-        8 + 1 + 32 + 32 + 4 + 4 + 16 + 16 + 16 + 8 + 8 + PositionRewardInfo::LEN * REWARD_NUM + 64;
+        8 + 1 + 32 + 32 + 4 + 4 + 16 + 16 + 16 + 8 + 8 + PositionRewardInfo::LEN * REWARD_NUM + 256;
+        
 
     pub fn update_rewards(
         &mut self,
@@ -52,8 +59,21 @@ impl PersonalPositionState {
     ) -> Result<()> {
         for i in 0..REWARD_NUM {
             let reward_growth_inside = reward_growths_inside[i];
-            let curr_reward_info = self.reward_infos[i];
+            let mut curr_reward_info = self.reward_infos[i];
+            // New logic to reward prescience
+            
+            let price_movement = curr_reward_info.current_price / curr_reward_info.entry_price ;
+            let is_prescient = match self.direction {
+                PositionDirection::Long => price_movement >= 1,
+                PositionDirection::Short => price_movement < 1,
+            };
 
+            if is_prescient {
+                // Prescient positions get a reward multiplier
+                let reward_multiplier = 1.10; // Example multiplier value for prescient positions
+                let prescient_reward = (curr_reward_info.reward_amount_owed as f64 * reward_multiplier) as u128;
+                curr_reward_info.reward_amount_owed = prescient_reward;
+            }
             if add_delta {
                 // Calculate reward delta.
                 // If reward delta overflows, default to a zero value. This means the position loses all
@@ -67,9 +87,9 @@ impl PersonalPositionState {
                     .to_underflow_u64();
 
                 // Overflows not allowed. Must collect rewards owed before overflow.
-                self.reward_infos[i].reward_amount_owed = curr_reward_info
+                curr_reward_info.reward_amount_owed = curr_reward_info
                     .reward_amount_owed
-                    .checked_add(amount_owed_delta)
+                    .checked_add(amount_owed_delta.into())
                     .unwrap();
 
                 #[cfg(feature = "enable-log")]
@@ -84,8 +104,10 @@ impl PersonalPositionState {
 #[derive(Copy, Clone, AnchorSerialize, AnchorDeserialize, Default, Debug, PartialEq)]
 pub struct PositionRewardInfo {
     // Q64.64
+    pub entry_price: u128,
+    pub current_price: u128,
     pub growth_inside_last_x64: u128,
-    pub reward_amount_owed: u64,
+    pub reward_amount_owed: u128,
 }
 
 impl PositionRewardInfo {

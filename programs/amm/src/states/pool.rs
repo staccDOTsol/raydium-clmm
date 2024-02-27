@@ -113,7 +113,6 @@ pub struct PoolState {
     /// bit4, 1: disable swap, 0: normal
     pub status: u8,
     /// Leave blank for future use
-    pub padding: [u8; 7],
 
     pub reward_infos: [RewardInfo; REWARD_NUM],
 
@@ -132,36 +131,15 @@ pub struct PoolState {
 
     // The timestamp allowed for swap in the pool.
     pub open_time: u64,
-
+    // the other opposing dichotomous pool state
     // Unused bytes for future upgrades.
-    pub padding1: [u64; 25],
-    pub padding2: [u64; 32],
+    pub last_price: u128,
+    pub value: u128,
+
 }
 
 impl PoolState {
-    pub const LEN: usize = 8
-        + 1
-        + 32 * 7
-        + 1
-        + 1
-        + 2
-        + 16
-        + 16
-        + 4
-        + 2
-        + 2
-        + 16
-        + 16
-        + 8
-        + 8
-        + 16
-        + 16
-        + 16
-        + 16
-        + 8
-        + RewardInfo::LEN * REWARD_NUM
-        + 8 * 16
-        + 512;
+    pub const LEN: usize = 1544;
 
     pub fn seeds(&self) -> [&[u8]; 5] {
         [
@@ -216,7 +194,6 @@ impl PoolState {
         self.swap_in_amount_token_1 = 0;
         self.swap_out_amount_token_0 = 0;
         self.status = 0;
-        self.padding = [0; 7];
         self.tick_array_bitmap = [0; 16];
         self.total_fees_token_0 = 0;
         self.total_fees_claimed_token_0 = 0;
@@ -225,8 +202,8 @@ impl PoolState {
         self.fund_fees_token_0 = 0;
         self.fund_fees_token_1 = 0;
         self.open_time = open_time;
-        self.padding1 = [0; 25];
-        self.padding2 = [0; 32];
+        self.last_price = 0;
+        self.value = 0;
         self.observation_key = observation_state_key;
 
         Ok(())

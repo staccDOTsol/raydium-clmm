@@ -18,12 +18,16 @@ pub struct SwapSingleV2<'info> {
     pub payer: Signer<'info>,
 
     /// The factory state to read protocol fees
-    #[account(address = pool_state.load()?.amm_config)]
+    #[account(address = l_state.load()?.amm_config)]
     pub amm_config: Box<Account<'info, AmmConfig>>,
 
     /// The program account of the pool in which the swap will be performed
     #[account(mut)]
-    pub pool_state: AccountLoader<'info, PoolState>,
+    pub l_state: AccountLoader<'info, PoolState>,
+
+    /// The program account of the pool in which the swap will be performed
+    #[account(mut)]
+    pub s_state: AccountLoader<'info, PoolState>,
 
     /// The user token account for input token
     #[account(mut)]
@@ -35,15 +39,27 @@ pub struct SwapSingleV2<'info> {
 
     /// The vault token account for input token
     #[account(mut)]
-    pub input_vault: Box<InterfaceAccount<'info, TokenAccount>>,
+    pub input_vault_l: Box<InterfaceAccount<'info, TokenAccount>>,
 
     /// The vault token account for output token
     #[account(mut)]
-    pub output_vault: Box<InterfaceAccount<'info, TokenAccount>>,
+    pub output_vault_l: Box<InterfaceAccount<'info, TokenAccount>>,
+
+    /// The vault token account for input token
+    #[account(mut)]
+    pub input_vault_s: Box<InterfaceAccount<'info, TokenAccount>>,
+
+    /// The vault token account for output token
+    #[account(mut)]
+    pub output_vault_s: Box<InterfaceAccount<'info, TokenAccount>>,
 
     /// The program account for the most recent oracle observation
-    #[account(mut, address = pool_state.load()?.observation_key)]
-    pub observation_state: AccountLoader<'info, ObservationState>,
+    #[account(mut, address = l_state.load()?.observation_key)]
+    pub observation_state_l: AccountLoader<'info, ObservationState>,
+
+    /// The program account for the most recent oracle observation
+    #[account(mut, address = s_state.load()?.observation_key)]
+    pub observation_state_s: AccountLoader<'info, ObservationState>,
 
     /// SPL program for token transfers
     pub token_program: Program<'info, Token>,
@@ -58,15 +74,11 @@ pub struct SwapSingleV2<'info> {
     pub memo_program: UncheckedAccount<'info>,
 
     /// The mint of token vault 0
-    #[account(
-        address = input_vault.mint
-    )]
+
     pub input_vault_mint: Box<InterfaceAccount<'info, Mint>>,
 
     /// The mint of token vault 1
-    #[account(
-        address = output_vault.mint
-    )]
+
     pub output_vault_mint: Box<InterfaceAccount<'info, Mint>>,
     // remaining accounts
     // tickarray_bitmap_extension: must add account if need regardless the sequence
@@ -74,6 +86,81 @@ pub struct SwapSingleV2<'info> {
     // tick_array_account_2
     // tick_array_account_...
 }
+pub fn rebalanc00r(
+    ctx: &mut SwapSingleV2,
+    leverage_factor: u64,
+    input_vault_l: &TokenAccount,
+    output_vault_s: &TokenAccount,
+    
+) -> Result<()> {
+    
+    // Ensure the total balance is not zero to avoid division by zero.
+    let total_balance = input_vault_l.amount.checked_add(output_vault_s.amount).ok_or(ErrorCode::TotalBalanceZero)?;
+    if total_balance == 0 {
+        return err!(ErrorCode::TotalBalanceZero);
+    }
+
+    // Calculate the target balances for long and short positions.
+    let target_long_balance = total_balance.checked_mul(leverage_factor).ok_or(ErrorCode::TotalBalanceZero)?
+                            .checked_div(leverage_factor.checked_add(1).ok_or(ErrorCode::TotalBalanceZero)?)
+                            .ok_or(ErrorCode::TotalBalanceZero)?;
+
+    let target_short_balance = total_balance.checked_sub(target_long_balance).ok_or(ErrorCode::TotalBalanceZero)?;
+    transfer_from_pool_vault_to_user(
+        &ctx.l_state,
+        &ctx.input_vault_l,
+        &ctx.output_vault_s,
+        None,
+        &ctx.token_program,
+        Some(ctx.token_program_2022.to_account_info()),
+        // transfer target_long_balance from long_vault to short_vault
+        target_long_balance,
+    )?;
+    transfer_from_pool_vault_to_user(
+        &ctx.s_state,
+        &ctx.output_vault_s,
+        &ctx.input_vault_l,
+        None,
+        &ctx.token_program,
+        Some(ctx.token_program_2022.to_account_info()),
+        // transfer target_short_balance from short_vault to long_vault
+        target_short_balance,
+    )?;
+    Ok(())
+ }pub fn adjust_position_values(
+    long_pool: &mut PoolState,
+    short_pool: &mut PoolState,
+) -> Result<()> {
+    let new_price = long_pool.sqrt_price_x64;
+
+    // Calculate the price movement ratio as a fixed-point number
+    // to avoid floating-point operations. This requires defining a precision factor.
+    let precision_factor = 1_000_000; // 6 decimal places for example
+
+    let price_movement_ratio = new_price.checked_mul(precision_factor)
+                                        .ok_or(ErrorCode::TooMuchInputPaid)?
+                                        .checked_div(long_pool.last_price)
+                                        .ok_or(ErrorCode::TooMuchInputPaid)?;
+
+    // Adjust the long pool's value
+    long_pool.value = long_pool.value.checked_mul(price_movement_ratio)
+                                    .ok_or(ErrorCode::TooMuchInputPaid)?
+                                    .checked_div(precision_factor) // Adjust back by the precision factor
+                                    .ok_or(ErrorCode::TooMuchInputPaid)?;
+
+    // Adjust the short pool's value inversely
+    short_pool.value = short_pool.value.checked_mul(precision_factor) // Adjust by the precision factor
+                                        .ok_or(ErrorCode::TooMuchInputPaid)?
+                                        .checked_div(price_movement_ratio)
+                                        .ok_or(ErrorCode::TooMuchInputPaid)?;
+
+    // Update last prices
+    long_pool.last_price = new_price;
+    short_pool.last_price = new_price;
+
+    Ok(())
+}
+
 
 /// Performs a single exact input/output swap
 /// if is_base_input = true, return vaule is the max_amount_out, otherwise is min_amount_in
@@ -87,7 +174,8 @@ pub fn exact_internal_v2<'c: 'info, 'info>(
     // invoke_memo_instruction(SWAP_MEMO_MSG, ctx.memo_program.to_account_info())?;
 
     let block_timestamp = solana_program::clock::Clock::get()?.unix_timestamp as u64;
-
+    let input_vault_mint = ctx.input_vault_mint.clone();
+    let output_vault_mint = ctx.output_vault_mint.clone();
     let amount_0;
     let amount_1;
     let zero_for_one;
@@ -99,29 +187,74 @@ pub fn exact_internal_v2<'c: 'info, 'info>(
     // calculate specified amount because the amount includes thransfer_fee as input and without thransfer_fee as output
     let amount_specified = if is_base_input {
         let transfer_fee =
-            util::get_transfer_fee(ctx.input_vault_mint.clone(), amount_specified).unwrap();
+            util::get_transfer_fee(input_vault_mint.clone(), amount_specified).unwrap();
         amount_specified - transfer_fee
     } else {
         let transfer_fee =
-            util::get_transfer_inverse_fee(ctx.output_vault_mint.clone(), amount_specified)
+            util::get_transfer_inverse_fee(output_vault_mint.clone(), amount_specified)
                 .unwrap();
         amount_specified + transfer_fee
     };
-
+    let use_long_vaults = (Clock::get()?.unix_timestamp % 2) == 0;
+    let input_vault;
+    let output_vault;
+    let pool_state;
+    let observation_state;
+    let leverage_factor = 100;
+    let other_pool_state;
+    if use_long_vaults {
+        input_vault = ctx.input_vault_l.clone();
+        output_vault = ctx.output_vault_l.clone();
+        pool_state = ctx.l_state.clone();
+        observation_state = ctx.observation_state_l.clone();
+        other_pool_state = ctx.s_state.clone();
+        rebalanc00r(
+            ctx,
+            leverage_factor,
+            &input_vault,
+            &ctx.output_vault_s.clone(),
+        )?;
+        rebalanc00r(
+            ctx,
+            leverage_factor,
+            &output_vault,
+            &ctx.input_vault_s.clone(),
+        )?;
+    } else {
+        input_vault = ctx.input_vault_s.clone();
+        output_vault = ctx.output_vault_s.clone();
+        pool_state = ctx.s_state.clone();
+        observation_state = ctx.observation_state_s.clone();
+        other_pool_state = ctx.l_state.clone();
+        rebalanc00r(
+            ctx,
+            leverage_factor,
+            &ctx.output_vault_l.clone(),
+            &input_vault,
+        )?;
+        rebalanc00r(
+            ctx,
+            leverage_factor,
+            &ctx.input_vault_l.clone(),
+            &output_vault,
+        )?;
+    }
     {
-        swap_price_before = ctx.pool_state.load()?.sqrt_price_x64;
-        let pool_state = &mut ctx.pool_state.load_mut()?;
-        zero_for_one = ctx.input_vault.mint == pool_state.token_mint_0;
+        swap_price_before = pool_state.load()?.sqrt_price_x64;
+        let pool_state = &mut pool_state.load_mut()?;
+        adjust_position_values(pool_state, &mut other_pool_state.load_mut().unwrap())?;
+        
+        zero_for_one = input_vault.mint == pool_state.token_mint_0;
 
         require_gt!(block_timestamp, pool_state.open_time);
 
         require!(
             if zero_for_one {
-                ctx.input_vault.key() == pool_state.token_vault_0
-                    && ctx.output_vault.key() == pool_state.token_vault_1
+                input_vault.key() == pool_state.token_vault_0
+                    && output_vault.key() == pool_state.token_vault_1
             } else {
-                ctx.input_vault.key() == pool_state.token_vault_1
-                    && ctx.output_vault.key() == pool_state.token_vault_0
+                input_vault.key() == pool_state.token_vault_1
+                    && output_vault.key() == pool_state.token_vault_0
             },
             ErrorCode::InvalidInputPoolVault
         );
@@ -146,7 +279,7 @@ pub fn exact_internal_v2<'c: 'info, 'info>(
             &ctx.amm_config,
             pool_state,
             tick_array_states,
-            &mut ctx.observation_state.load_mut()?,
+            &mut observation_state.load_mut()?,
             &tickarray_bitmap_extension,
             amount_specified,
             if sqrt_price_limit_x64 == 0 {
@@ -180,19 +313,19 @@ pub fn exact_internal_v2<'c: 'info, 'info>(
             (
                 ctx.input_token_account.clone(),
                 ctx.output_token_account.clone(),
-                ctx.input_vault.clone(),
-                ctx.output_vault.clone(),
-                ctx.input_vault_mint.clone(),
-                ctx.output_vault_mint.clone(),
+                input_vault.clone(),
+                output_vault.clone(),
+                input_vault_mint.clone(),
+                output_vault_mint.clone(),
             )
         } else {
             (
                 ctx.output_token_account.clone(),
                 ctx.input_token_account.clone(),
-                ctx.output_vault.clone(),
-                ctx.input_vault.clone(),
-                ctx.output_vault_mint.clone(),
-                ctx.input_vault_mint.clone(),
+                output_vault.clone(),
+                input_vault.clone(),
+                output_vault_mint.clone(),
+                input_vault_mint.clone(),
             )
         };
 
@@ -229,11 +362,11 @@ pub fn exact_internal_v2<'c: 'info, 'info>(
         )?;
         if vault_1.amount <= transfer_amount_1 {
             // freeze pool, disable all instructions
-            ctx.pool_state.load_mut()?.set_status(255);
+            pool_state.load_mut()?.set_status(255);
         }
         // x -> y，transfer y token from pool vault to user.
         transfer_from_pool_vault_to_user(
-            &ctx.pool_state,
+            &pool_state,
             &vault_1,
             &token_account_1,
             Some(vault_1_mint),
@@ -262,10 +395,10 @@ pub fn exact_internal_v2<'c: 'info, 'info>(
         )?;
         if vault_0.amount <= transfer_amount_0 {
             // freeze pool, disable all instructions
-            ctx.pool_state.load_mut()?.set_status(255);
+            pool_state.load_mut()?.set_status(255);
         }
         transfer_from_pool_vault_to_user(
-            &ctx.pool_state,
+            &pool_state,
             &vault_0,
             &token_account_0,
             Some(vault_0_mint),
@@ -277,7 +410,9 @@ pub fn exact_internal_v2<'c: 'info, 'info>(
     ctx.output_token_account.reload()?;
     ctx.input_token_account.reload()?;
 
-    let pool_state = ctx.pool_state.load()?;
+    let pool_state = pool_state.load()?;
+
+
     emit!(SwapEvent {
         pool_state: pool_state.key(),
         sender: ctx.payer.key(),

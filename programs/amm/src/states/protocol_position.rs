@@ -44,11 +44,21 @@ pub struct ProtocolPositionState {
     /// The reward growth per unit of liquidity as of the last update to liquidity
     pub reward_growth_inside: [u128; REWARD_NUM], // 24
     // Unused bytes for future upgrades.
-    pub padding: [u64; 8],
+    pub entry_price_long: u128, // 8
+    pub current_price_long: u128, // + 8 
+    pub entry_price_short: u128, // + 8
+    pub current_price_short: u128, // is this what 16 bytes? // + 8
+    
+    pub direction: PositionDirection, // + 1 = 
 }
-
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug, PartialEq, Default, Copy)]
+pub enum PositionDirection {
+    #[default]
+    Long,
+    Short,
+}
 impl ProtocolPositionState {
-    pub const LEN: usize = 8 + 1 + 32 + 4 + 4 + 16 + 16 + 16 + 8 + 8 + 16 * REWARD_NUM + 64;
+    pub const LEN: usize = 8 + 1 + 32 + 4 + 4 + 16 + 16 + 16 + 8 + 8 + 16 * REWARD_NUM + 8 + 8 + 8 + 8 + 1 + 128;
 
     pub fn update(
         &mut self,

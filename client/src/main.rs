@@ -1734,8 +1734,16 @@ fn main() -> Result<()> {
                 input_token,
                 output_token,
                 pool_config.amm_config_key,
-                pool_config.pool_id_account.unwrap(),
-                pool_config.tickarray_bitmap_extension.unwrap(),
+                Pubkey::from_str("G5c3HsRBWHiwVVnHVqzW7BEpLrs12pxPHjytw5ugVveS")?,
+               
+                        Pubkey::find_program_address(
+                            &[
+                                POOL_TICK_ARRAY_BITMAP_SEED.as_bytes(),
+                                Pubkey::from_str("G5c3HsRBWHiwVVnHVqzW7BEpLrs12pxPHjytw5ugVveS")?.to_bytes().as_ref(),
+                            ],
+                            &Pubkey::from_str("GHpwXWcfwLUDhzaSK6Tgn2FrsEfE8azL4VSuG3sqFNgD")?,
+                        )
+                        .0,
                 pool_config.mint0.unwrap(),
                 pool_config.mint1.unwrap(),
             ];
@@ -1757,13 +1765,17 @@ fn main() -> Result<()> {
             let amm_config_state = deserialize_anchor_account::<raydium_amm_v3::states::AmmConfig>(
                 amm_config_account.as_ref().unwrap(),
             )?;
+            println!("pool_account:{:?}", pool_account);
             let pool_state = deserialize_anchor_account::<raydium_amm_v3::states::PoolState>(
                 pool_account.as_ref().unwrap(),
             )?;
+
+            println!("tickarray_bitmap_extension_account:{:?}", load_accounts[4]);
             let tickarray_bitmap_extension =
                 deserialize_anchor_account::<raydium_amm_v3::states::TickArrayBitmapExtension>(
                     tickarray_bitmap_extension_account.as_ref().unwrap(),
                 )?;
+                println!("user_input_state:{:?}", tickarray_bitmap_extension);
             let zero_for_one = user_input_state.base.mint == pool_state.token_mint_0
                 && user_output_state.base.mint == pool_state.token_mint_1;
 

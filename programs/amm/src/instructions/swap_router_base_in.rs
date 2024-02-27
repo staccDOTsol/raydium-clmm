@@ -51,30 +51,34 @@ pub fn swap_router_base_in<'a, 'b, 'c: 'info, 'info>(
             continue;
         }
         let amm_config = Box::new(Account::<AmmConfig>::try_from(account_info)?);
-        let pool_state_loader =
+        let l_state_loader =
             AccountLoader::<PoolState>::try_from(remaining_accounts.next().unwrap())?;
+        let s_state_loader =
+                AccountLoader::<PoolState>::try_from(remaining_accounts.next().unwrap())?;
         let output_token_account = Box::new(InterfaceAccount::<TokenAccount>::try_from(
             &remaining_accounts.next().unwrap(),
         )?);
-        let input_vault = Box::new(InterfaceAccount::<TokenAccount>::try_from(
+        let input_vault_l = Box::new(InterfaceAccount::<TokenAccount>::try_from(
             remaining_accounts.next().unwrap(),
         )?);
-        let output_vault = Box::new(InterfaceAccount::<TokenAccount>::try_from(
+        let output_vault_l = Box::new(InterfaceAccount::<TokenAccount>::try_from(
+            remaining_accounts.next().unwrap(),
+        )?);
+        let input_vault_s = Box::new(InterfaceAccount::<TokenAccount>::try_from(
+            remaining_accounts.next().unwrap(),
+        )?);
+        let output_vault_s = Box::new(InterfaceAccount::<TokenAccount>::try_from(
             remaining_accounts.next().unwrap(),
         )?);
         let output_token_mint = Box::new(InterfaceAccount::<Mint>::try_from(
             remaining_accounts.next().unwrap(),
         )?);
-        let observation_state =
+        let observation_state_l =
             AccountLoader::<ObservationState>::try_from(remaining_accounts.next().unwrap())?;
 
-        {
-            let pool_state = pool_state_loader.load()?;
-            // check observation account is owned by the pool
-            require_keys_eq!(pool_state.observation_key, observation_state.key());
-            // check ammConfig account is associate with the pool
-            require_keys_eq!(pool_state.amm_config, amm_config.key());
-        }
+        let observation_state_s =
+            AccountLoader::<ObservationState>::try_from(remaining_accounts.next().unwrap())?;
+       
 
         // solana_program::log::sol_log_compute_units();
         accounts = remaining_accounts.as_slice();
@@ -83,13 +87,20 @@ pub fn swap_router_base_in<'a, 'b, 'c: 'info, 'info>(
                 payer: ctx.accounts.payer.clone(),
                 amm_config,
                 input_token_account: input_token_account.clone(),
-                pool_state: pool_state_loader,
+                l_state: l_state_loader,
+                s_state: s_state_loader,
                 output_token_account: output_token_account.clone(),
-                input_vault: input_vault.clone(),
-                output_vault: output_vault.clone(),
+                input_vault_l: input_vault_l.clone(),
+                output_vault_l: output_vault_l.clone(),
+
+                input_vault_s: input_vault_s.clone(),
+                output_vault_s: output_vault_s.clone(),
                 input_vault_mint: input_token_mint.clone(),
                 output_vault_mint: output_token_mint.clone(),
-                observation_state,
+                observation_state_l: observation_state_l.clone(),
+                observation_state_s: observation_state_s.clone(),
+                
+
                 token_program: ctx.accounts.token_program.clone(),
                 token_program_2022: ctx.accounts.token_program_2022.clone(),
                 memo_program: ctx.accounts.memo_program.clone(),
