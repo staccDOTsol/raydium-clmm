@@ -2,8 +2,13 @@
 name = "not-raydium-perp-pools-client"
 version = "0.1.0"
 rust-version = "1.56"
-description = "This is a client that allows you to interacc with the devnet demo of staccoverflow's IL- and liquidation-killing perpetual pools Raydium CLMM fork. For fun and profit. https://65ecbd0c38e711dd255ec22c--megayield.netlify.app wat works:connect, concentrated liquidity,create pool,add lp position,close lp position"
+authors = ["stacc <jarettrsdunn+git@gmail.com>"]
+description = "This is a client that allows you to interacc with the devnet demo of staccoverflow's IL- and liquidation-killing perpetual pools Raydium CLMM fork. For fun and profit. https://65ecbd0c38e711dd255ec22c--megayield.netlify.app wat works:connect, concentrated liquidity,create pool,add lp position,close lp position. in this here client 'swap v2' is a misnomer ur actually taking out a levered position *yolo* and unswap v2 is closin it. there is no incentive to help out probably yet yanno points"
 edition = "2021"
+license-file = "../license"
+homepage = "https://twitter.com/staccoverflow"
+documentation = "https://twitter.com/staccoverflow"
+repository = "https://github.com/staccdotsol/raydium-clmm"
 keywords = ["solana", "anchor", "staccoverflow"]
 readme = "https://gist.github.com/staccDOTsol/13f3f2bc9029ab0bc8d8754dc700cd53"
 
@@ -20,7 +25,7 @@ spl-token-client = "0.7.0"
 spl-memo = "4.0.0"
 spl-associated-token-account = { version = "2.2.0", features = ["no-entrypoint"]}
 spl-token-2022 = { version = "0.9.0", features = ["no-entrypoint"]}
-mpl-token-metadata = { version = "*", features = ["no-entrypoint"] }
+mpl-token-metadata = { version = "^3", features = ["no-entrypoint"] }
 clap = { version = "4.1.8", features = ["derive"] }
 anyhow = "1.0.32"
 rand = "0.7.3"
