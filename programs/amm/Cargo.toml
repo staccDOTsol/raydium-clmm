@@ -36,7 +36,7 @@ mpl-token-metadata = { version = "^1.11.0", features = ["no-entrypoint"] }
 bytemuck = { version = "1.4.0", features = ["derive", "min_const_generics"] }
 arrayref = { version = "0.3.6" }
 num-integer = "0.1.46"
-spl-token = "*"
+spl-token = "^3"
 
 [dev-dependencies]
 quickcheck = "0.9"
