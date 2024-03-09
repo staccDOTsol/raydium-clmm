@@ -1996,7 +1996,7 @@ fn main() -> Result<()> {
         let mut instructions = Vec::new();
         let request_inits_instr = ComputeBudgetInstruction::set_compute_unit_limit(1400_000u32);
         instructions.push(request_inits_instr);
-        
+        println!("poo state? {:?}", pool_state);
         let user_leverage_output_mint = pool_state.leveraged_mint_1.unwrap();
         let user_leverage_input_mint = pool_state.leveraged_mint_0.unwrap();
         let user_leverage_output_token = get_associated_token_address(&payer.pubkey(), &user_leverage_output_mint);
@@ -2040,7 +2040,7 @@ fn main() -> Result<()> {
                 )
             },
             
-            user_leverage_output_token,
+            user_leverage_input_token,
             if zero_for_one {
                 other_pool_config.mint0.unwrap()
             } else {
