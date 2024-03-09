@@ -10,6 +10,7 @@ use anchor_spl::{
 #[derive(Accounts)]
 pub struct SwapRouterBaseIn<'info> {
     /// The user performing the swap
+    #[account(mut)]
     pub payer: Signer<'info>,
 
     /// The token account that pays input tokens for the swap
@@ -19,7 +20,7 @@ pub struct SwapRouterBaseIn<'info> {
     /// The mint of input token
     #[account(mut)]
     pub input_token_mint: InterfaceAccount<'info, Mint>,
-
+    pub other_pool_state: AccountLoader<'info, PoolState>,
     /// SPL program for token transfers
     pub token_program: Program<'info, Token>,
     /// SPL program 2022 for token transfers
@@ -30,6 +31,7 @@ pub struct SwapRouterBaseIn<'info> {
     //     address = spl_memo::id()
     // )]
     pub memo_program: UncheckedAccount<'info>,
+    pub system_program: Program<'info, System>,
 }
 
 pub fn swap_router_base_in<'a, 'b, 'c: 'info, 'info>(
@@ -75,6 +77,18 @@ pub fn swap_router_base_in<'a, 'b, 'c: 'info, 'info>(
             // check ammConfig account is associate with the pool
             require_keys_eq!(pool_state.amm_config, amm_config.key());
         }
+        let input_leveraged_account = Box::new(InterfaceAccount::<TokenAccount>::try_from(
+            remaining_accounts.next().unwrap(),
+        )?);
+        let output_leveraged_account = Box::new(InterfaceAccount::<TokenAccount>::try_from(
+            remaining_accounts.next().unwrap(),
+        )?);
+        let input_leveraged_mint = Box::new(InterfaceAccount::<Mint>::try_from(
+            remaining_accounts.next().unwrap(),
+        )?);
+        let output_leveraged_mint = Box::new(InterfaceAccount::<Mint>::try_from(
+            remaining_accounts.next().unwrap(),
+        )?);
 
         // solana_program::log::sol_log_compute_units();
         accounts = remaining_accounts.as_slice();
@@ -93,6 +107,12 @@ pub fn swap_router_base_in<'a, 'b, 'c: 'info, 'info>(
                 token_program: ctx.accounts.token_program.clone(),
                 token_program_2022: ctx.accounts.token_program_2022.clone(),
                 memo_program: ctx.accounts.memo_program.clone(),
+                other_pool_state: ctx.accounts.other_pool_state.clone(),
+                input_leveraged_account: input_leveraged_account.clone(),
+                output_leveraged_account: output_leveraged_account.clone(),
+                input_leveraged_mint: input_leveraged_mint.clone(),
+                output_leveraged_mint: output_leveraged_mint.clone(),
+                system_program: ctx.accounts.system_program.clone(),
             },
             accounts,
             amount_in_internal,

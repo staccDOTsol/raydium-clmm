@@ -1,10 +1,12 @@
 use crate::error::ErrorCode;
 use crate::states::*;
-use crate::{libraries::tick_math, util};
-use anchor_lang::prelude::*;
+use crate::libraries::tick_math;
+use anchor_lang::{prelude::*, Discriminator};
 use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
+use solana_program::sysvar::instructions;
 // use solana_program::{program::invoke_signed, system_instruction};
 #[derive(Accounts)]
+#[instruction(sqrt_price_x64: u128, open_time: u64, other_ix: u8, leverage: u8)]
 pub struct CreatePool<'info> {
     /// Address paying to create the pool. Can be anyone
     #[account(mut)]
@@ -21,6 +23,7 @@ pub struct CreatePool<'info> {
             amm_config.key().as_ref(),
             token_mint_0.key().as_ref(),
             token_mint_1.key().as_ref(),
+            &leverage.to_le_bytes(),
         ],
         bump,
         payer = pool_creator,
@@ -30,7 +33,6 @@ pub struct CreatePool<'info> {
 
     /// Token_0 mint, the key must grater then token_1 mint.
     #[account(
-        constraint = token_mint_0.key() < token_mint_1.key(),
         mint::token_program = token_program_0
     )]
     pub token_mint_0: Box<InterfaceAccount<'info, Mint>>,
@@ -98,17 +100,82 @@ pub struct CreatePool<'info> {
     pub system_program: Program<'info, System>,
     /// Sysvar for program account
     pub rent: Sysvar<'info, Rent>,
+    
+    #[account(address = instructions::ID)]
+    /// CHECK: check
+    pub ixs_sysvar: AccountInfo<'info>,
 }
 
-pub fn create_pool(ctx: Context<CreatePool>, sqrt_price_x64: u128, open_time: u64) -> Result<()> {
-    if !(util::is_supported_mint(&ctx.accounts.token_mint_0).unwrap()
-        && util::is_supported_mint(&ctx.accounts.token_mint_1).unwrap())
-    {
-        return err!(ErrorCode::NotSupportMint);
-    }
+const OTHER_IX_POOL_AI_IDX: usize = 2;
+
+pub fn check_are_we_two_pools(
+    pool_key: &Pubkey,
+    amm_config_key: &Pubkey,
+    token_mint_0_key: &Pubkey,
+    token_mint_1_key: &Pubkey,
+    sysvar_ixs: &AccountInfo,
+    other_ix: usize,
+    leverage: u8,
+) -> Result<(Pubkey, u8)> {
+
+    let current_ix_idx: usize = instructions::load_current_index_checked(sysvar_ixs)?.into();
+
+    assert!(current_ix_idx != other_ix,         "{}", ErrorCode::NotApproved);
+
+    // Will error if ix doesn't exist
+    let unchecked_other_ix_ix = instructions::load_instruction_at_checked(other_ix, sysvar_ixs)?;
+
+    assert!(
+        unchecked_other_ix_ix.data[..8]
+            .eq(&crate::instruction::CreatePool::DISCRIMINATOR),
+            "{}", ErrorCode::NotApproved
+        );
+
+    assert!(
+        unchecked_other_ix_ix.program_id.eq(&crate::id()),
+        "{}", ErrorCode::NotApproved
+    );
+
+    let other_ix_ix = unchecked_other_ix_ix;
+
+    let other_ix_pool = other_ix_ix
+        .accounts
+        .get(OTHER_IX_POOL_AI_IDX)
+        .ok_or(ErrorCode::NotApproved)?;
+
+    let (expect_pda_address, _bump) = Pubkey::find_program_address(
+            &[
+                POOL_SEED.as_bytes(),
+                amm_config_key.as_ref(),
+                token_mint_1_key.as_ref(),
+                token_mint_0_key.as_ref(),
+                &leverage.to_le_bytes(),
+            ],
+            &crate::id(),
+        );
+        require_keys_eq!(expect_pda_address, other_ix_pool.pubkey);
+
+    assert!(
+        other_ix_pool.pubkey.ne(&pool_key),
+        "{}", ErrorCode::NotApproved
+    );
+    let long_or_short =other_ix > current_ix_idx;
+    let long_or_short = if long_or_short { 1 } else { 0 };
+    Ok((other_ix_pool.pubkey, long_or_short))
+}
+
+pub fn create_pool(ctx: Context<CreatePool>, sqrt_price_x64: u128, open_time: u64, other_ix: u8, leverage: u8) -> Result<()> {
+   
     let pool_id = ctx.accounts.pool_state.key();
     let mut pool_state = ctx.accounts.pool_state.load_init()?;
-
+    let (other_ix_pubkey_checked, long_or_short) = check_are_we_two_pools(
+        &pool_id,
+        &ctx.accounts.amm_config.key(),
+        &ctx.accounts.token_mint_0.key(),
+        &ctx.accounts.token_mint_1.key(),
+        &ctx.accounts.ixs_sysvar,
+        other_ix as usize,
+    leverage)?;
     let tick = tick_math::get_tick_at_sqrt_price(sqrt_price_x64)?;
     #[cfg(feature = "enable-log")]
     msg!(
@@ -132,6 +199,9 @@ pub fn create_pool(ctx: Context<CreatePool>, sqrt_price_x64: u128, open_time: u6
         ctx.accounts.token_mint_0.as_ref(),
         ctx.accounts.token_mint_1.as_ref(),
         ctx.accounts.observation_state.key(),
+        other_ix_pubkey_checked,
+        long_or_short,
+        leverage
     )?;
 
     ctx.accounts

@@ -1,3 +1,4 @@
+use std::cell::RefMut;
 use std::collections::VecDeque;
 use std::ops::Deref;
 
@@ -8,6 +9,7 @@ use crate::util::*;
 use crate::{states::*, util};
 use anchor_lang::prelude::*;
 use anchor_spl::token::Token;
+use anchor_spl::token_2022;
 use anchor_spl::token_interface::{Mint, Token2022, TokenAccount};
 
 /// Memo msg for swap
@@ -15,6 +17,7 @@ pub const SWAP_MEMO_MSG: &'static [u8] = b"raydium_swap";
 #[derive(Accounts)]
 pub struct SwapSingleV2<'info> {
     /// The user performing the swap
+    #[account(mut)]
     pub payer: Signer<'info>,
 
     /// The factory state to read protocol fees
@@ -32,6 +35,29 @@ pub struct SwapSingleV2<'info> {
     /// The user token account for output token
     #[account(mut)]
     pub output_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
+
+    /// The vault token account for output token
+    #[account(
+        mut,
+       // mint::decimals = input_vault_mint.decimals,
+        mint::authority = pool_state,
+    )]
+    pub input_leveraged_mint: Box<InterfaceAccount<'info, Mint>>,
+
+    /// The vault token account for output token
+    #[account(
+        mut,
+      //  mint::decimals = output_vault_mint.decimals,
+        mint::authority = pool_state)]
+    pub output_leveraged_mint: Box<InterfaceAccount<'info, Mint>>,
+
+    /// The user token account for input token
+    #[account(mut)]
+    pub input_leveraged_account: Box<InterfaceAccount<'info, TokenAccount>>,
+
+    /// The user token account for output token
+    #[account(mut)]
+    pub output_leveraged_account: Box<InterfaceAccount<'info, TokenAccount>>,
 
     /// The vault token account for input token
     #[account(mut)]
@@ -59,15 +85,16 @@ pub struct SwapSingleV2<'info> {
 
     /// The mint of token vault 0
     #[account(
-        address = input_vault.mint
     )]
     pub input_vault_mint: Box<InterfaceAccount<'info, Mint>>,
 
     /// The mint of token vault 1
     #[account(
-        address = output_vault.mint
     )]
     pub output_vault_mint: Box<InterfaceAccount<'info, Mint>>,
+    pub other_pool_state: AccountLoader<'info, PoolState>,
+    pub system_program: Program<'info, System>,
+
     // remaining accounts
     // tickarray_bitmap_extension: must add account if need regardless the sequence
     // tick_array_account_1
@@ -111,20 +138,20 @@ pub fn exact_internal_v2<'c: 'info, 'info>(
     {
         swap_price_before = ctx.pool_state.load()?.sqrt_price_x64;
         let pool_state = &mut ctx.pool_state.load_mut()?;
-        zero_for_one = ctx.input_vault.mint == pool_state.token_mint_0;
+        if pool_state.leveraged_mint_0 == None 
+            && pool_state.leveraged_mint_1 == None
+        {
+           pool_state.leveraged_mint_0 = Some(ctx.input_leveraged_mint.key());
+              pool_state.leveraged_mint_1 = Some(ctx.output_leveraged_mint.key());
+        }
+        if pool_state.leveraged_mint_0.unwrap() != ctx.input_leveraged_mint.key()
+            && pool_state.leveraged_mint_1.unwrap() != ctx.output_leveraged_mint.key()
+        {
+            return Err(ErrorCode::NotApproved.into());
+        }
+        zero_for_one = ctx.input_vault_mint.key() == pool_state.token_mint_0;
 
         require_gt!(block_timestamp, pool_state.open_time);
-
-        require!(
-            if zero_for_one {
-                ctx.input_vault.key() == pool_state.token_vault_0
-                    && ctx.output_vault.key() == pool_state.token_vault_1
-            } else {
-                ctx.input_vault.key() == pool_state.token_vault_1
-                    && ctx.output_vault.key() == pool_state.token_vault_0
-            },
-            ErrorCode::InvalidInputPoolVault
-        );
 
         let mut tickarray_bitmap_extension = None;
         let tick_array_states = &mut VecDeque::new();
@@ -175,13 +202,17 @@ pub fn exact_internal_v2<'c: 'info, 'info>(
             ErrorCode::TooSmallInputOrOutputAmount
         );
     }
-    let (token_account_0, token_account_1, vault_0, vault_1, vault_0_mint, vault_1_mint) =
+    let (token_account_0, token_account_1, vault_0, vault_1, leveraged_mint_0, leveraged_account_0, leveraged_mint_1, leveraged_account_1, vault_0_mint, vault_1_mint) =
         if zero_for_one {
             (
                 ctx.input_token_account.clone(),
                 ctx.output_token_account.clone(),
                 ctx.input_vault.clone(),
                 ctx.output_vault.clone(),
+                ctx.input_leveraged_mint.clone(),
+                ctx.input_leveraged_account.clone(),
+                ctx.output_leveraged_mint.clone(),
+                ctx.output_leveraged_account.clone(),
                 ctx.input_vault_mint.clone(),
                 ctx.output_vault_mint.clone(),
             )
@@ -191,6 +222,10 @@ pub fn exact_internal_v2<'c: 'info, 'info>(
                 ctx.input_token_account.clone(),
                 ctx.output_vault.clone(),
                 ctx.input_vault.clone(),
+                ctx.output_leveraged_mint.clone(),
+                ctx.output_leveraged_account.clone(),
+                ctx.input_leveraged_mint.clone(),
+                ctx.input_leveraged_account.clone(),
                 ctx.output_vault_mint.clone(),
                 ctx.input_vault_mint.clone(),
             )
@@ -227,18 +262,12 @@ pub fn exact_internal_v2<'c: 'info, 'info>(
             Some(ctx.token_program_2022.to_account_info()),
             transfer_amount_0,
         )?;
-        if vault_1.amount <= transfer_amount_1 {
-            // freeze pool, disable all instructions
-            ctx.pool_state.load_mut()?.set_status(255);
-        }
         // x -> y，transfer y token from pool vault to user.
-        transfer_from_pool_vault_to_user(
+        mint_leveraged_tokens_to_user(
             &ctx.pool_state,
-            &vault_1,
-            &token_account_1,
-            Some(vault_1_mint),
+            &leveraged_account_1,
+            &leveraged_mint_1,
             &ctx.token_program,
-            Some(ctx.token_program_2022.to_account_info()),
             transfer_amount_1,
         )?;
     } else {
@@ -260,18 +289,12 @@ pub fn exact_internal_v2<'c: 'info, 'info>(
             Some(ctx.token_program_2022.to_account_info()),
             transfer_amount_1,
         )?;
-        if vault_0.amount <= transfer_amount_0 {
-            // freeze pool, disable all instructions
-            ctx.pool_state.load_mut()?.set_status(255);
-        }
-        transfer_from_pool_vault_to_user(
+        mint_leveraged_tokens_to_user(
             &ctx.pool_state,
-            &vault_0,
-            &token_account_0,
-            Some(vault_0_mint),
+            &leveraged_account_0,
+            &leveraged_mint_0,
             &ctx.token_program,
-            Some(ctx.token_program_2022.to_account_info()),
-            transfer_amount_0,
+            transfer_amount_0
         )?;
     }
     ctx.output_token_account.reload()?;
@@ -340,4 +363,385 @@ pub fn swap_v2<'a, 'b, 'c: 'info, 'info>(
     }
 
     Ok(())
+}
+
+use anchor_spl::token::{self, Burn, Transfer};
+use num_integer::Roots;
+use solana_program::program::invoke_signed;
+use solana_program::program_pack::Pack;
+
+#[derive(Accounts)]
+pub struct UnswapSingleV2<'info> {
+    /// The user performing the unswap
+    #[account(mut)]
+    pub user: Signer<'info>,
+
+    /// The leveraged token account from which tokens will be burned
+    #[account(mut)]
+    pub leveraged_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
+
+    /// The mint of the leveraged token
+    #[account(mut)]
+    pub leveraged_token_mint: Box<InterfaceAccount<'info, Mint>>,
+
+    /// The user's account to which the collateral will be returned
+    #[account(mut)]
+    pub collateral_account: Box<InterfaceAccount<'info, TokenAccount>>,
+
+    /// The pool state to update after burning leveraged tokens
+    #[account(mut)]
+    pub pool_state: AccountLoader<'info, PoolState>,
+    #[account(mut)]
+    pub other_pool_sate: AccountLoader<'info, PoolState>,
+    #[account(mut)]
+    pub pool_state_base_vault: Box<InterfaceAccount<'info, TokenAccount>>,
+    #[account(mut)]
+    pub pool_state_quote_vault: Box<InterfaceAccount<'info, TokenAccount>>,
+    #[account(mut)]
+    pub other_pool_state_base_vault: Box<InterfaceAccount<'info, TokenAccount>>,
+    #[account(mut)]
+    pub other_pool_state_quote_vault: Box<InterfaceAccount<'info, TokenAccount>>,
+    /// The Token Mint 0 
+    #[account(mut)]
+    pub token_mint_0: Box<InterfaceAccount<'info, Mint>>,
+    /// The Token Mint 1
+    #[account(mut)]
+    pub token_mint_1: Box<InterfaceAccount<'info, Mint>>,
+    /// SPL Token program
+    pub token_program: Program<'info, Token>,
+
+    /// SPL Token program 2022
+
+    pub token_program_2022: Program<'info, Token2022>,
+
+    /// The account that holds the collateral within the pool
+    #[account(mut)]
+    pub pool_collateral_account: Box<InterfaceAccount<'info, TokenAccount>>,
+}
+pub fn unswap_v2<'a, 'b, 'c: 'info, 'info>(
+    ctx: Context<'a, 'b, 'c, 'info, UnswapSingleV2<'info>>,
+    amount_to_burn: u64,
+) -> Result<()> {
+    let mut pool_ratio: f64;
+    let mut other_pool_ratio: f64;
+    {
+    // Burn the leveraged tokens from the user's account
+    let burn_cpi_accounts = Burn {
+        mint: ctx.accounts.leveraged_token_mint.to_account_info(),
+        from: ctx.accounts.leveraged_token_account.to_account_info(),
+        authority: ctx.accounts.user.to_account_info(),
+    };
+    let burn_cpi_program = ctx.accounts.token_program.to_account_info();
+    let burn_cpi_ctx = CpiContext::new(burn_cpi_program, burn_cpi_accounts);
+    token::burn(burn_cpi_ctx, amount_to_burn)?;
+}
+
+let mut accounts = vec![];
+accounts.push(ctx.accounts.pool_state.to_account_info());
+msg!("accounts: {:?}", accounts.len());
+accounts.push(ctx.accounts.other_pool_sate.to_account_info());
+msg!("accounts: {:?}", accounts.len());
+accounts.push(ctx.accounts.pool_state_base_vault.to_account_info());
+msg!("accounts: {:?}", accounts.len());
+accounts.push(ctx.accounts.pool_state_quote_vault.to_account_info());
+msg!("accounts: {:?}", accounts.len());
+accounts.push(ctx.accounts.other_pool_state_base_vault.to_account_info());
+msg!("accounts: {:?}", accounts.len());
+accounts.push(ctx.accounts.other_pool_state_quote_vault.to_account_info());
+msg!("accounts: {:?}", accounts.len());
+
+
+    // implement the logic to rebalance the pools based on the amount of tokens being burned
+    // This should consider the pool's leverage, the amount of tokens being burned, and any fees or penalties
+    // The pool's state should be updated to reflect the new balances of the base and quote vaults
+    // The other pool's state should also be updated to reflect the new balances of the base and quote vaults
+
+    let pool_state = ctx.accounts.pool_state.load()?;
+
+    let other_pool_state = ctx.accounts.other_pool_sate.load()?;
+
+    // Calculate the amount of collateral to return based on the rebalanced pool state and power leverage
+    // This function needs to be defined according to your protocol's specific leverage calculations
+    let leverage = pool_state.leverage.into_iter().next().unwrap();
+    msg!("leverage: {}", leverage);
+    {
+
+
+    let collateral_to_return = calculate_collateral_to_return(&pool_state, &other_pool_state, amount_to_burn)?;
+    // Transfer the collateral from the pool's collateral account back to the user's collateral account
+    let transfer_cpi_accounts = Transfer {
+        from: ctx.accounts.pool_collateral_account.to_account_info(),
+        to: ctx.accounts.collateral_account.to_account_info(),
+        authority: ctx.accounts.pool_state.to_account_info(),
+    };
+    let signer = &[&pool_state.seeds()[..]];
+    let transfer_cpi_program = ctx.accounts.token_program.to_account_info();
+    let transfer_cpi_ctx = CpiContext::new_with_signer(transfer_cpi_program, transfer_cpi_accounts, signer);
+    token::transfer(transfer_cpi_ctx, collateral_to_return as u64 / 1_000_000_000)?;
+}
+{
+    let price = pool_state.sqrt_price_x64 as f64;
+    let other_price = other_pool_state.sqrt_price_x64 as f64;
+    let which_pool_seeds = if price > other_price {
+        pool_state.seeds()
+    } else {
+        other_pool_state.seeds()
+    };
+    let last_price_on_rebalance = pool_state.price_on_last_rebalance as f64;
+    let other_last_price_on_rebalance = other_pool_state.price_on_last_rebalance as f64;
+     pool_ratio = calculate_adjustment_ratio(
+        price, 
+        last_price_on_rebalance,    
+        leverage as u64);
+             other_pool_ratio = calculate_adjustment_ratio(
+        other_price,
+        other_last_price_on_rebalance,
+        leverage as u64);
+
+    let pool_state_key = pool_state.key();
+    let other_pool_state_key = other_pool_state.key();
+    let leverage = pool_state.leverage.into_iter().next().unwrap();
+
+   
+  
+    let base_vault = ctx.accounts.pool_state_base_vault.to_account_info();
+    let other_base_vault = ctx.accounts.other_pool_state_base_vault.to_account_info();
+    let quote_vault = ctx.accounts.pool_state_quote_vault.to_account_info();
+    let other_quote_vault = ctx.accounts.other_pool_state_quote_vault.to_account_info();
+    let amount_to_transfer = if price > other_price {
+        let hm = spl_token::state::Account::unpack(&base_vault.clone().data.borrow())?;
+        
+        ((1_f64 - pool_ratio as f64) * hm.amount as f64) as u128 
+    } else {
+        let hm = spl_token::state::Account::unpack(&quote_vault.clone().data.borrow())?;
+       ((1_f64 - pool_ratio as f64) * hm.amount as f64) as u128 
+    };
+    
+    
+
+    
+
+    msg!("pool_ratio: {}", pool_ratio);
+    // figure out the amount of base and quote tokens to transfer based on power leverage
+    // first find out which is higher price
+    msg!("amount_to_transfer: {}", amount_to_transfer);
+        let old_token_program = if price > other_price {
+            if base_vault.owner == ctx.accounts.token_program_2022.key {
+                false
+            } else {
+                true
+            }
+        } else {
+            if other_base_vault.owner == ctx.accounts.token_program_2022.key {
+                false
+            } else {
+                true 
+            }
+        };
+        msg!("old_token_program: {}", old_token_program);
+        msg!("which_pool_seeds: {}", which_pool_seeds.len());
+        match old_token_program {
+            true => {
+                let ix = 
+                    spl_token::instruction::transfer(
+                        &ctx.accounts.token_program.key(),
+                        &if price > other_price {
+                            base_vault.key()
+                        } else {
+                            other_quote_vault.key()
+                        },
+                        &if price > other_price {
+                            other_quote_vault.key()
+                        } else {
+                            base_vault.key()
+                        },
+                        &if price > other_price {
+                            pool_state_key 
+                        } else {
+                            other_pool_state_key
+                        },
+                        &[],
+                        amount_to_transfer as u64
+                    )?;
+                msg!("ix: {:?}", ix);
+                invoke_signed(
+                    &ix,
+                    &accounts,
+                    &[&which_pool_seeds],
+                )?;
+            }
+            false => {
+                token_2022::transfer_checked(
+                    CpiContext::new_with_signer(
+                        ctx.accounts.token_program_2022.to_account_info(),
+                        token_2022::TransferChecked {
+                            from: base_vault,
+                            to: other_base_vault.clone(),
+                            authority: if price > other_price {
+                                ctx.accounts.pool_state.to_account_info()
+                            } else {
+                                ctx.accounts.other_pool_sate.to_account_info()
+                            },
+                            mint: ctx.accounts.token_mint_0.to_account_info()
+                        },
+                        &[&which_pool_seeds],
+                    ),
+                    amount_to_transfer as u64,
+                    ctx.accounts.token_mint_0.decimals,
+                )?;
+            }
+        }
+    // repeat for quote
+    let amount_to_transfer = if price < other_price {
+        let hm = spl_token::state::Account::unpack(&other_base_vault.clone().data.borrow())?;
+        
+        ((1_f64 - other_pool_ratio as f64) * hm.amount as f64) as u128 
+    } else {
+        let hm = spl_token::state::Account::unpack(&other_quote_vault.clone().data.borrow())?;
+       ((1_f64 - other_pool_ratio as f64) * hm.amount as f64) as u128
+    };
+    
+    
+    msg!("amount_to_transfer: {}", amount_to_transfer);
+
+    msg!("pool_ratio: {}", pool_ratio);
+    // figure out the amount of base and quote tokens to transfer based on power leverage
+    // first find out which is higher price
+  
+    let quote_vault = ctx.accounts.pool_state_quote_vault.to_account_info();
+    let other_quote_vault = ctx.accounts.other_pool_state_quote_vault.to_account_info();
+    let base_vault = ctx.accounts.pool_state_base_vault.to_account_info();
+    let other_base_vault = ctx.accounts.other_pool_state_base_vault.to_account_info();
+    msg!("amount_to_transfer: {}", amount_to_transfer);
+        let old_token_program = if price < other_price {
+            if quote_vault.owner == ctx.accounts.token_program_2022.key {
+                false
+            } else {
+                true
+            }
+        } else {
+            if other_quote_vault.owner == ctx.accounts.token_program_2022.key {
+                false
+            } else {
+                true 
+            }
+        };
+        msg!("old_token_program: {}", old_token_program);
+       
+        msg!("which_pool_seeds: {}", which_pool_seeds.len());
+        match old_token_program {
+            true => {
+               
+                let ix = 
+                    spl_token::instruction::transfer(
+                        &ctx.accounts.token_program.key(),
+                        &if price > other_price {
+                            quote_vault.key()
+                        } else {
+                            other_base_vault.key()
+                        },
+                        &if price > other_price {
+                            other_base_vault.key()
+                        } else {
+                            quote_vault.key()
+                        },
+                        &if price > other_price {
+                            pool_state_key 
+                        } else {
+                            other_pool_state_key 
+                        },
+                        &[],
+                        amount_to_transfer as u64
+                    )?;
+                msg!("ix: {:?}", ix);
+                
+                invoke_signed(
+                    &ix,
+                    &accounts,
+                    &[&which_pool_seeds],
+                )?;
+            }
+            false => {
+                token_2022::transfer_checked(
+                    CpiContext::new_with_signer(
+                        ctx.accounts.token_program_2022.to_account_info(),
+                        token_2022::TransferChecked {
+                            from: quote_vault,
+                            to: other_quote_vault,
+                            authority: if price > other_price {
+                                ctx.accounts.pool_state.to_account_info()
+                            } else {
+                                ctx.accounts.other_pool_sate.to_account_info()
+                            },
+                            mint: ctx.accounts.token_mint_1.to_account_info()
+                        },
+                        &[&which_pool_seeds],
+                    ),
+                    amount_to_transfer as u64,
+                    ctx.accounts.token_mint_1.decimals,
+                )?;
+            }
+    }
+}
+drop(pool_state);
+drop(other_pool_state);
+{
+let mut pool_state = ctx.accounts.pool_state.load_mut()?;
+let mut other_pool_state = ctx.accounts.other_pool_sate.load_mut()?;
+
+    let price = pool_state.sqrt_price_x64;
+    let other_price = other_pool_state.sqrt_price_x64;
+    let leverage = pool_state.leverage.into_iter().next().unwrap();
+   
+    pool_state.price_on_last_rebalance = price;
+    other_pool_state.price_on_last_rebalance = other_price;
+    pool_state.curr_ratio = pool_ratio as u128;
+    other_pool_state.curr_ratio = other_pool_ratio as u128 ;
+}
+
+    Ok(())
+}
+fn calculate_adjustment_ratio(
+    current_price: f64,
+    last_rebalance_price: f64,
+    leverage: u64,
+) -> f64 {
+    msg!("current_price: {}", current_price);
+    msg!("last_rebalance_price: {}", last_rebalance_price);
+    // Calculate the price movement ratio since the last rebalance
+    let price_movement_ratio = if last_rebalance_price > 0.0 {
+        current_price / last_rebalance_price
+    } else {
+        1.0
+    };
+    msg!("price_movement_ratio: {}", price_movement_ratio);
+
+    // Adjust the ratio by the leverage factor
+    // it is a sqrt_x64 
+    let adjustment_ratio = price_movement_ratio.powf(leverage as f64);
+    msg!("adjustment_ratio: {}", adjustment_ratio);
+    
+    // Return the adjustment ratio as a u128
+    (adjustment_ratio )
+}
+
+// Implement this function based on your pool's specific logic for calculating the collateral to return
+fn calculate_collateral_to_return(pool_state: &PoolState, other_pool_state: &PoolState, amount_to_burn: u64) -> Result<u64> {
+    // logic for profit/loss
+    // checks price of pool vs other pool
+    // checks amount of tokens burned
+    // returns amount of collateral to return
+   
+    let base_value: f64 = 1_000_000_000f64;
+
+    let pool_ratio = if pool_state.curr_ratio == 0 {
+        1_000_000_000
+    } else {
+        pool_state.curr_ratio
+    };
+    let ratio = (pool_ratio as f64 / base_value) as f64;
+    let amount_to_return = (amount_to_burn as f64 / ratio) as u64;
+    
+        
+    Ok(amount_to_return as u64)
 }

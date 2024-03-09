@@ -2,6 +2,7 @@ use anchor_client::{Client, Cluster};
 use anchor_lang::prelude::AccountMeta;
 use anyhow::Result;
 use mpl_token_metadata::state::PREFIX as MPL_PREFIX;
+use raydium_amm_v3::states::PoolState;
 use solana_sdk::{
     instruction::Instruction, pubkey::Pubkey, signature::Signer, system_program, sysvar,
 };
@@ -121,30 +122,26 @@ pub fn update_operation_account_instr(
 
 pub fn create_pool_instr(
     config: &ClientConfig,
+    other_config: &ClientConfig,
     amm_config: Pubkey,
     observation_key: Pubkey,
+    other_observation_key: Pubkey,
     token_mint_0: Pubkey,
     token_mint_1: Pubkey,
     token_program_0: Pubkey,
     token_program_1: Pubkey,
     tick_array_bitmap: Pubkey,
+    other_tick_array_bitmap: Pubkey,
     sqrt_price_x64: u128,
     open_time: u64,
+    ixs_len: u8
 ) -> Result<Vec<Instruction>> {
     let payer = read_keypair_file(&config.payer_path)?;
     let url = Cluster::Custom(config.http_url.clone(), config.ws_url.clone());
     // Client.
     let client = Client::new(url, Rc::new(payer));
     let program = client.program(config.raydium_v3_program)?;
-    let (pool_account_key, __bump) = Pubkey::find_program_address(
-        &[
-            POOL_SEED.as_bytes(),
-            amm_config.to_bytes().as_ref(),
-            token_mint_0.to_bytes().as_ref(),
-            token_mint_1.to_bytes().as_ref(),
-        ],
-        &program.id(),
-    );
+    let pool_account_key = config.pool_id_account.unwrap();
     let (token_vault_0, __bump) = Pubkey::find_program_address(
         &[
             POOL_VAULT_SEED.as_bytes(),
@@ -177,13 +174,60 @@ pub fn create_pool_instr(
             token_program_1,
             system_program: system_program::id(),
             rent: sysvar::rent::id(),
+            ixs_sysvar: sysvar::instructions::id(),
         })
         .args(raydium_instruction::CreatePool {
             sqrt_price_x64,
             open_time,
+            other_idx: ixs_len+1,
+            leverage: 3,
         })
         .instructions()?;
-    Ok(instructions)
+    let pool_account_key = other_config.pool_id_account.unwrap();
+    let (token_vault_0, __bump) = Pubkey::find_program_address(
+        &[
+            POOL_VAULT_SEED.as_bytes(),
+            pool_account_key.to_bytes().as_ref(),
+            token_mint_1.to_bytes().as_ref(),
+        ],
+        &program.id(),
+    );
+    let (token_vault_1, __bump) = Pubkey::find_program_address(
+        &[
+            POOL_VAULT_SEED.as_bytes(),
+            pool_account_key.to_bytes().as_ref(),
+            token_mint_0.to_bytes().as_ref(),
+        ],
+        &program.id(),
+    );
+    let instructions_2 = program
+        .request()
+        .accounts(raydium_accounts::CreatePool {
+            pool_creator: program.payer(),
+            amm_config: amm_config,
+            pool_state: pool_account_key,
+            token_mint_0: token_mint_1,
+            token_mint_1: token_mint_0,
+            token_vault_0,
+            token_vault_1,
+            observation_state: other_observation_key,
+            tick_array_bitmap: other_tick_array_bitmap,
+            token_program_0: token_program_1,
+            token_program_1: token_program_0,
+            system_program: system_program::id(),
+            rent: sysvar::rent::id(),
+            ixs_sysvar: sysvar::instructions::id(),
+        })
+        .args(raydium_instruction::CreatePool {
+            sqrt_price_x64,
+            open_time,
+            other_idx: ixs_len,
+            leverage: 3
+
+        })
+        .instructions()?;
+
+    Ok(instructions.into_iter().chain(instructions_2).collect())
 }
 
 pub fn open_position_instr(
@@ -544,13 +588,18 @@ pub fn swap_v2_instr(
     config: &ClientConfig,
     amm_config: Pubkey,
     pool_account_key: Pubkey,
+    other_pool_account_key: Pubkey,
     input_vault: Pubkey,
     output_vault: Pubkey,
     observation_state: Pubkey,
     user_input_token: Pubkey,
+    user_leveraged_input_token: Pubkey,
     user_out_put_token: Pubkey,
+    user_leveraged_out_put_token: Pubkey,
     input_vault_mint: Pubkey,
+    leveraged_input_mint: Pubkey,
     output_vault_mint: Pubkey,
+    leveraged_output_mint: Pubkey,
     remaining_accounts: Vec<AccountMeta>,
     amount: u64,
     other_amount_threshold: u64,
@@ -578,6 +627,12 @@ pub fn swap_v2_instr(
             memo_program: spl_memo::id(),
             input_vault_mint,
             output_vault_mint,
+            other_pool_state: other_pool_account_key,
+            input_leveraged_account: user_leveraged_input_token,
+            output_leveraged_account: user_leveraged_out_put_token,
+            input_leveraged_mint: leveraged_input_mint,
+            output_leveraged_mint: leveraged_output_mint,
+            system_program: system_program::id(),
         })
         .accounts(remaining_accounts)
         .args(raydium_instruction::SwapV2 {
@@ -590,6 +645,56 @@ pub fn swap_v2_instr(
     Ok(instructions)
 }
 
+
+pub fn unswap_v2_instr(
+    config: &ClientConfig,
+    other_pool_state: &PoolState,
+    pool_account_key: Pubkey,
+    other_pool_account_key: Pubkey,
+    input_vault: Pubkey,
+    output_vault: Pubkey,
+    other_input_vault: Pubkey,
+    other_output_vault: Pubkey,
+    user_out_put_token: Pubkey,
+    user_leveraged_out_put_token: Pubkey,
+    input_vault_mint: Pubkey,
+    output_vault_mint: Pubkey,
+    leveraged_output_mint: Pubkey,
+    remaining_accounts: Vec<AccountMeta>,
+    amount: u64,
+) -> Result<Vec<Instruction>> {
+    let payer = read_keypair_file(&config.payer_path)?;
+    let url = Cluster::Custom(config.http_url.clone(), config.ws_url.clone());
+    // Client.
+    let client = Client::new(url, Rc::new(payer));
+    let program = client.program(config.raydium_v3_program)?;
+    let instructions = program
+        .request()
+        .accounts(raydium_accounts::UnswapSingleV2 {
+            user: program.payer(),
+            leveraged_token_account: user_leveraged_out_put_token,
+            leveraged_token_mint: leveraged_output_mint,
+            collateral_account: user_out_put_token,
+            pool_state_base_vault: input_vault,
+            pool_state_quote_vault: output_vault,
+            other_pool_state_base_vault: other_input_vault,
+            other_pool_state_quote_vault: other_output_vault,
+            other_pool_sate: other_pool_account_key,
+            token_mint_0: input_vault_mint,
+            token_mint_1: output_vault_mint,
+            pool_collateral_account: input_vault,
+
+            pool_state: pool_account_key,
+            token_program: spl_token::id(),
+            token_program_2022: spl_token_2022::id()
+        })
+        .accounts(remaining_accounts)
+        .args(raydium_instruction::UnswapV2 {
+            amount: amount,
+        })
+        .instructions()?;
+    Ok(instructions)
+}
 pub fn initialize_reward_instr(
     config: &ClientConfig,
     pool_account_key: Pubkey,

@@ -11,16 +11,16 @@ use states::*;
 use util::access_control::*;
 
 #[cfg(feature = "devnet")]
-declare_id!("devi51mZmdwUJGU9hjN27vEz64Gps7uUefqxg27EAtH");
+declare_id!("6weQP6SNcqqk8KnQGcM2rzU1Xk9o9atJD8kvASVCrN55");
 #[cfg(not(feature = "devnet"))]
-declare_id!("CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK");
+declare_id!("6weQP6SNcqqk8KnQGcM2rzU1Xk9o9atJD8kvASVCrN55");
 
 pub mod admin {
     use anchor_lang::prelude::declare_id;
     #[cfg(feature = "devnet")]
-    declare_id!("adMCyoCgfkg7bQiJ9aBJ59H3BXLY3r5LNLfPpQfMzBe");
+    declare_id!("7ihN8QaTfNoDTRTQGULCzbUT3PHwPDTu5Brcu4iT2paP");
     #[cfg(not(feature = "devnet"))]
-    declare_id!("GThUX1Atko4tqhN2NaiTazWSeFWMuiUvfFnyJyUghFMJ");
+    declare_id!("7ihN8QaTfNoDTRTQGULCzbUT3PHwPDTu5Brcu4iT2paP");
 }
 
 #[program]
@@ -88,8 +88,10 @@ pub mod amm_v3 {
         ctx: Context<CreatePool>,
         sqrt_price_x64: u128,
         open_time: u64,
+        other_idx: u8,
+        leverage: u8,
     ) -> Result<()> {
-        instructions::create_pool(ctx, sqrt_price_x64, open_time)
+        instructions::create_pool(ctx, sqrt_price_x64, open_time, other_idx, leverage)
     }
 
     /// Update pool status for given vaule
@@ -455,6 +457,14 @@ pub mod amm_v3 {
     /// * `sqrt_price_limit` - The Q64.64 sqrt price √P limit. If zero for one, the price cannot
     /// * `is_base_input` - swap base input or swap base output
     ///
+
+    pub fn unswap_v2<'a, 'b, 'c: 'info, 'info>(
+        ctx: Context<'a, 'b, 'c, 'info, UnswapSingleV2<'info>>,
+        amount: u64,
+    ) -> Result<()> {
+        instructions::unswap_v2(ctx, amount)
+    }
+    
     pub fn swap_v2<'a, 'b, 'c: 'info, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, SwapSingleV2<'info>>,
         amount: u64,

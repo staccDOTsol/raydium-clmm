@@ -113,7 +113,7 @@ pub struct PoolState {
     /// bit4, 1: disable swap, 0: normal
     pub status: u8,
     /// Leave blank for future use
-    pub padding: [u8; 7],
+    pub padding: [u8; 2],
 
     pub reward_infos: [RewardInfo; REWARD_NUM],
 
@@ -134,41 +134,26 @@ pub struct PoolState {
     pub open_time: u64,
 
     // Unused bytes for future upgrades.
-    pub padding1: [u64; 25],
-    pub padding2: [u64; 32],
+    pub padding1: [u64; 20],
+    pub long_or_short: u8,
+    pub price_on_last_rebalance: u128,
+    pub other_pool: Pubkey,
+    pub leverage: [u8; 1],
+    pub curr_ratio: u128,
+    pub leveraged_mint_0: Option<Pubkey>,   
+    pub leveraged_mint_1: Option<Pubkey>,
 }
 
 impl PoolState {
-    pub const LEN: usize = 8
-        + 1
-        + 32 * 7
-        + 1
-        + 1
-        + 2
-        + 16
-        + 16
-        + 4
-        + 2
-        + 2
-        + 16
-        + 16
-        + 8
-        + 8
-        + 16
-        + 16
-        + 16
-        + 16
-        + 8
-        + RewardInfo::LEN * REWARD_NUM
-        + 8 * 16
-        + 512;
+    pub const LEN: usize = 8 + std::mem::size_of::<PoolState>();
 
-    pub fn seeds(&self) -> [&[u8]; 5] {
+    pub fn seeds(&self) -> [&[u8]; 6] {
         [
             &POOL_SEED.as_bytes(),
             self.amm_config.as_ref(),
             self.token_mint_0.as_ref(),
             self.token_mint_1.as_ref(),
+            self.leverage.as_ref(),
             self.bump.as_ref(),
         ]
     }
@@ -190,6 +175,9 @@ impl PoolState {
         token_mint_0: &InterfaceAccount<Mint>,
         token_mint_1: &InterfaceAccount<Mint>,
         observation_state_key: Pubkey,
+        other_pool: Pubkey,
+        long_or_short: u8,
+        leverage: u8,
     ) -> Result<()> {
         self.bump = [bump];
         self.amm_config = amm_config.key();
@@ -216,7 +204,7 @@ impl PoolState {
         self.swap_in_amount_token_1 = 0;
         self.swap_out_amount_token_0 = 0;
         self.status = 0;
-        self.padding = [0; 7];
+        self.padding = [0; 2];
         self.tick_array_bitmap = [0; 16];
         self.total_fees_token_0 = 0;
         self.total_fees_claimed_token_0 = 0;
@@ -225,9 +213,13 @@ impl PoolState {
         self.fund_fees_token_0 = 0;
         self.fund_fees_token_1 = 0;
         self.open_time = open_time;
-        self.padding1 = [0; 25];
-        self.padding2 = [0; 32];
+        self.padding1 = [0; 20];
         self.observation_key = observation_state_key;
+        self.other_pool = other_pool;
+        self.long_or_short = long_or_short;
+        self.leverage = [leverage];
+        self.price_on_last_rebalance = sqrt_price_x64;
+        self.curr_ratio = 0;
 
         Ok(())
     }

@@ -431,7 +431,11 @@ fn swap_compute(
                     zero_for_one,
                 )
                 .unwrap();
-            tick_array_current = tick_arrays.pop_front().unwrap();
+            let tick_array_current_maybe = tick_arrays.pop_front();
+            if tick_array_current_maybe.is_some() {
+                // init tick array
+        
+            let mut tick_array_current = tick_array_current_maybe.unwrap();
             if current_vaild_tick_array_start_index.is_none() {
                 return Result::Err("tick array start tick index out of range limit");
             }
@@ -444,7 +448,8 @@ fn swap_compute(
                 .first_initialized_tick(zero_for_one)
                 .unwrap();
 
-            next_initialized_tick = Box::new(*first_initialized_tick.deref_mut());
+            next_initialized_tick = Box::new(*first_initialized_tick.deref_mut());        
+        }
         }
         step.tick_next = next_initialized_tick.tick;
         step.initialized = next_initialized_tick.is_initialized();

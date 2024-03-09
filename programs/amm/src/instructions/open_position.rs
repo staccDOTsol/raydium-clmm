@@ -756,16 +756,20 @@ pub fn add_liquidity<'b, 'c: 'info, 'info>(
         amount_1,
         amount_1_transfer_fee
     );
-    require_gte!(
-        amount_0_max,
-        amount_0 + amount_0_transfer_fee,
-        ErrorCode::PriceSlippageCheck
-    );
-    require_gte!(
-        amount_1_max,
-        amount_1 + amount_1_transfer_fee,
-        ErrorCode::PriceSlippageCheck
-    );
+    if amount_0_max > 0 {
+        require_gte!(
+            amount_0_max,
+            amount_0 + amount_0_transfer_fee,
+            ErrorCode::PriceSlippageCheck
+        );
+    }
+    if amount_1_max > 0 {
+        require_gte!(
+            amount_1_max,
+            amount_1 + amount_1_transfer_fee,
+            ErrorCode::PriceSlippageCheck
+        );
+    }
     let mut token_2022_program_opt: Option<AccountInfo> = None;
     if token_program_2022.is_some() {
         token_2022_program_opt = Some(token_program_2022.clone().unwrap().to_account_info());

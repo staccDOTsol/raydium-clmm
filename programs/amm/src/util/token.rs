@@ -15,6 +15,7 @@ use anchor_spl::{
     token_interface::{Mint, TokenAccount},
 };
 use std::collections::HashSet;
+use num_integer::Roots;
 
 const MINT_WHITELIST: [&'static str; 3] = [
     "HVbpJAQGNpkgBaYBZQBR1t7yFdvaYVp2vCQQfKKEN4tM",
@@ -125,6 +126,59 @@ pub fn transfer_from_pool_vault_to_user<'info>(
             amount,
         ),
     }
+}
+pub fn mint_leveraged_tokens_to_user<'info>(
+    pool_state_loader: &AccountLoader<'info, PoolState>,
+    user_leveraged_token_account: &InterfaceAccount<'info, TokenAccount>,
+    leveraged_token_mint: &InterfaceAccount<'info, Mint>,
+    token_program: &AccountInfo<'info>,
+    amount: u64,
+) -> Result<()> {
+    
+    let mut curr_ratio = pool_state_loader.load()?.curr_ratio;
+
+
+
+    if curr_ratio == 0 {
+        // sqrt_x64 for 1
+        curr_ratio = 1_000_000_000_000_000_000;
+    }
+    let ratio_f64 = curr_ratio as f64;
+    
+    let ratio_squared = ratio_f64 * ratio_f64;
+    let ratio = ratio_squared.sqrt() as u64;
+    // is this not 2
+    // Program log: ratio_f64 is 999966669
+    // we want to get to 999 
+    let mint_amount = ((amount as f64 / ratio_f64) as f64 * 10_f64.powf(9_f64)) as u64;
+
+
+
+    if mint_amount == 0 {
+        msg!("Mint amount is 0, skipping minting");
+        msg!("ratio_squared is {}", ratio_squared);
+        msg!("ratio is {}", ratio);
+        msg!("ratio_f64 is {}", ratio_f64);
+        msg!("mint_amount is {}", mint_amount);
+       
+
+        return Ok(());
+    }
+
+    // Mint leveraged tokens to the user's leveraged token account equivalent to the collateral amount
+    // The actual leverage effect will be managed through the pool's rebalancing mechanics
+    token::mint_to(
+        CpiContext::new_with_signer(
+            token_program.to_account_info(),
+            token::MintTo {
+                mint: leveraged_token_mint.to_account_info(),
+                to: user_leveraged_token_account.to_account_info(),
+                authority: pool_state_loader.to_account_info(),
+            },
+            &[&pool_state_loader.load()?.seeds()],
+        ),
+        mint_amount, // Mint an amount of leveraged tokens equivalent to the collateral provided
+    )
 }
 
 pub fn close_spl_account<'a, 'b, 'c, 'info>(
