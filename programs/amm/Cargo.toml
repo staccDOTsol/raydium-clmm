@@ -5,7 +5,10 @@ authors = ["stacc <jarettrsdunn+git@gmail.com>"]
 description = "Anchor client and source for Raydium concentrated liquidity AMM"
 edition = "2021"
 keywords = ["solana", "anchor", "raydium"]
-
+license = "none"
+homepage = "https://twitter.com/staccoverflow"
+documentation = "https://twitter.com/staccoverflow"
+repository = "https://github.com/staccdotsol/raydium-clmm"
 [lib]
 crate-type = ["cdylib", "lib"]
 name = "raydium_amm_v3"
