@@ -1,13 +1,16 @@
 [package]
-name = "client"
+name = "not-raydium-perp-pools-client"
 version = "0.1.0"
 rust-version = "1.56"
+description = "This is a client that allows you to interacc with the devnet demo of staccoverflow's IL- and liquidation-killing perpetual pools Raydium CLMM fork. For fun and profit. https://65ecbd0c38e711dd255ec22c--megayield.netlify.app wat works:connect, concentrated liquidity,create pool,add lp position,close lp position"
 edition = "2021"
+keywords = ["solana", "anchor", "staccoverflow"]
+readme = "https://gist.github.com/staccDOTsol/13f3f2bc9029ab0bc8d8754dc700cd53"
 
 [dependencies]
 anchor-client = "0.29.0"
 anchor-lang = "0.29.0"
-raydium-amm-v3 = {path = "../programs/amm", features = ["no-entrypoint", "client"]}
+raydium-amm-v3 = {version="0.1.0",path = "../programs/amm", features = ["no-entrypoint", "client"]}
 solana-sdk = ">=1.14, <1.17"
 solana-client = ">=1.14, <1.17"
 solana-account-decoder = ">=1.14, <1.17"
