@@ -1,9 +1,9 @@
 [workspace]
 members = [
     "programs/*",
-    "client",
+    "not-raydium-perp-pools-client",
 ]
-
+version="0.1.0"
 [profile.test]
 opt-level = 0
 
