@@ -10,7 +10,7 @@ homepage = "https://twitter.com/staccoverflow"
 documentation = "https://twitter.com/staccoverflow"
 repository = "https://github.com/staccdotsol/raydium-clmm"
 keywords = ["solana", "anchor", "staccoverflow"]
-readme = "https://gist.github.com/staccDOTsol/13f3f2bc9029ab0bc8d8754dc700cd53"
+readme = "client_config.ini"
 
 [dependencies]
 anchor-client = "0.29.0"
