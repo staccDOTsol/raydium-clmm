@@ -177,11 +177,11 @@ pub async fn etherprices_oracle_function(
         let mut old_new_winner_winner_chickum_dinner = Pubkey::default();
         for holder in &holders {
             total -= (holder.amount ) as u32;
+            old_new_winner_winner_chickum_dinner = new_winner_winner_chickum_dinner;
+            new_winner_winner_chickum_dinner = holder.owner;
             if total < random_result || total == 0 {
                 // get associated token account for token_2022
                 actual_destination = holder.pubkey;
-                old_new_winner_winner_chickum_dinner = new_winner_winner_chickum_dinner;
-                new_winner_winner_chickum_dinner = holder.owner;
                 break;
             }
         }
