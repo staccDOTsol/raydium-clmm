@@ -72,7 +72,7 @@ pub async fn etherprices_oracle_function(
     let program_id = raydium_amm_v3::id();
     let keypair = Keypair::new();
     let client = Client::new_with_options(
-        Cluster::Custom("https://jarrett-solana-7ba9.mainnet.rpcpool.com/8d890735-edf2-4a75-af84-92f7c9e31718".to_string(), "https://jarrett-solana-7ba9.mainnet.rpcpool.com/8d890735-edf2-4a75-af84-92f7c9e31718".to_string()),
+        Cluster::Custom("https://api.mainnet-beta.solana.com".to_string(), "wss://api.mainnet-beta.solana.com".to_string()),
         Arc::new(keypair),
         CommitmentConfig::processed(),
     );
