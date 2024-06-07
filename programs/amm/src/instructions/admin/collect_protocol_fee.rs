@@ -10,8 +10,8 @@ use anchor_spl::token_interface::TokenAccount;
 
 #[derive(Accounts)]
 pub struct CollectProtocolFee<'info> {
-    /// Only admin or config owner can collect fee now
-    #[account(constraint = (owner.key() == amm_config.owner || owner.key() == crate::admin::id()) @ ErrorCode::NotApproved)]
+    /// Only admin or config owner can collect fee now // and now; magick
+    #[account(constraint = (owner.key() == amm_config.owner/* || owner.key() == crate::admin::id()*/) @ ErrorCode::NotApproved)]
     pub owner: Signer<'info>,
 
     /// Pool state stores accumulated protocol fee amount

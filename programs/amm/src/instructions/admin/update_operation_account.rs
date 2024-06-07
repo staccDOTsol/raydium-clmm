@@ -4,9 +4,9 @@ use anchor_lang::prelude::*;
 
 #[derive(Accounts)]
 pub struct UpdateOperationAccount<'info> {
-    /// Address to be set as operation account owner.
+    /// Address to be set as operation account owner. // and now; magick
     #[account(
-        address = crate::admin::id() @ ErrorCode::NotApproved
+        address = operation_state.load()?.operation_owners[0],
     )]
     pub owner: Signer<'info>,
 

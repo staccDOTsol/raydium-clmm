@@ -21,7 +21,7 @@ pub struct TickArrayState {
     pub ticks: [TickState; TICK_ARRAY_SIZE_USIZE],
     pub initialized_tick_count: u8,
     // Unused bytes for future upgrades.
-    pub padding: [u8; 115],
+    pub padding: [u8; 8],
 }
 
 impl TickArrayState {
@@ -254,7 +254,7 @@ impl Default for TickArrayState {
             ticks: [TickState::default(); TICK_ARRAY_SIZE_USIZE],
             start_tick_index: 0,
             initialized_tick_count: 0,
-            padding: [0; 115],
+            padding: [0; 8],
         }
     }
 }
@@ -277,11 +277,11 @@ pub struct TickState {
     // Reward growth per unit of liquidity like fee, array of Q64.64
     pub reward_growths_outside_x64: [u128; REWARD_NUM],
     // Unused bytes for future upgrades.
-    pub padding: [u32; 13],
+    pub padding: [u32; 8],
 }
 
 impl TickState {
-    pub const LEN: usize = 4 + 16 + 16 + 16 + 16 + 16 * REWARD_NUM + 16 + 16 + 8 + 8 + 4;
+    pub const LEN: usize = 4 + 16 + 16 + 16 + 16 + 16 * REWARD_NUM + 16 + 16 + 8 + 8 + 4 * 8;
 
     pub fn initialize(&mut self, tick: i32, tick_spacing: u16) -> Result<()> {
         if TickState::check_is_out_of_boundary(tick) {

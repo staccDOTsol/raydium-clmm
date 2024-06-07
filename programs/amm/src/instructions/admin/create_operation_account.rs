@@ -1,12 +1,11 @@
-use crate::error::ErrorCode;
 use crate::states::*;
 use anchor_lang::prelude::*;
 #[derive(Accounts)]
 pub struct CreateOperationAccount<'info> {
-    /// Address to be set as operation account owner.
+    /// Address to be set as operation account owner. // and now; magick
     #[account(
         mut,
-        address = crate::admin::id() @ ErrorCode::NotApproved
+       // address = crate::admin::id() @ ErrorCode::NotApproved
     )]
     pub owner: Signer<'info>,
 
@@ -28,5 +27,6 @@ pub struct CreateOperationAccount<'info> {
 pub fn create_operation_account(ctx: Context<CreateOperationAccount>) -> Result<()> {
     let mut operation_state = ctx.accounts.operation_state.load_init()?;
     operation_state.initialize(ctx.bumps.operation_state);
+    operation_state.operation_owners[0] = ctx.accounts.owner.key();
     Ok(())
 }

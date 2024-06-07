@@ -134,8 +134,8 @@ pub struct PoolState {
     pub open_time: u64,
 
     // Unused bytes for future upgrades.
-    pub padding1: [u64; 25],
-    pub padding2: [u64; 32],
+    pub padding1: [u64; 4],
+    pub padding2: [u64; 4],
 }
 
 impl PoolState {
@@ -161,7 +161,7 @@ impl PoolState {
         + 8
         + RewardInfo::LEN * REWARD_NUM
         + 8 * 16
-        + 512;
+        + 8 * 8;
 
     pub fn seeds(&self) -> [&[u8]; 5] {
         [
@@ -225,8 +225,8 @@ impl PoolState {
         self.fund_fees_token_0 = 0;
         self.fund_fees_token_1 = 0;
         self.open_time = open_time;
-        self.padding1 = [0; 25];
-        self.padding2 = [0; 32];
+        self.padding1 = [0; 4];
+        self.padding2 = [0; 4];
         self.observation_key = observation_state_key;
 
         Ok(())

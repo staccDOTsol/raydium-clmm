@@ -1,11 +1,10 @@
-use crate::error::ErrorCode;
 use crate::states::*;
 use anchor_lang::prelude::*;
 #[derive(Accounts)]
 pub struct TransferRewardOwner<'info> {
     /// Address to be set as operation account owner.
     #[account(
-        address = crate::admin::id() @ ErrorCode::NotApproved
+        address = pool_state.load()?.owner
     )]
     pub authority: Signer<'info>,
 
