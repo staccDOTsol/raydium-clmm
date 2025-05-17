@@ -1,6 +1,7 @@
 use crate::error::ErrorCode;
 use crate::states::*;
 use crate::{libraries::tick_math, util};
+use crate::states::POOL_CREATION_FEE_LAMPORTS;
 use anchor_lang::{prelude::*, solana_program};
 use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 // use solana_program::{program::invoke_signed, system_instruction};
@@ -128,6 +129,8 @@ pub struct CreatePool<'info> {
 }
 
 pub fn create_pool(ctx: Context<CreatePool>, sqrt_price_x64: u128, open_time: u64) -> Result<()> {
+    // creation fee is set to zero by default. the constant is kept for compatibility
+    let _creation_fee = POOL_CREATION_FEE_LAMPORTS;
     let mint0_associated_is_initialized = util::support_mint_associated_is_initialized(
         &ctx.remaining_accounts,
         &ctx.accounts.token_mint_0,
