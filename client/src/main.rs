@@ -384,14 +384,14 @@ pub enum CommandsName {
     CreateConfig {
         config_index: u16,
         tick_spacing: u16,
-        trade_fee_rate: u32,
+        trade_fee_flat: u64,
         protocol_fee_rate: u32,
         fund_fee_rate: u32,
     },
     UpdateConfig {
         config_index: u16,
         param: u8,
-        value: u32,
+        value: u64,
         remaining: Option<Pubkey>,
     },
     CreateOperation,
@@ -755,7 +755,7 @@ fn main() -> Result<()> {
         CommandsName::CreateConfig {
             config_index,
             tick_spacing,
-            trade_fee_rate,
+            trade_fee_flat,
             protocol_fee_rate,
             fund_fee_rate,
         } => {
@@ -763,7 +763,7 @@ fn main() -> Result<()> {
                 &pool_config.clone(),
                 config_index,
                 tick_spacing,
-                trade_fee_rate,
+                trade_fee_flat,
                 protocol_fee_rate,
                 fund_fee_rate,
             )?;
@@ -786,7 +786,7 @@ fn main() -> Result<()> {
             remaining,
         } => {
             let mut remaing_accounts = Vec::new();
-            let mut update_value = 0;
+            let mut update_value: u64 = 0;
             let match_param = Some(param);
             match match_param {
                 Some(0) => update_value = value,

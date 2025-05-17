@@ -358,7 +358,7 @@ pub fn handle_program_instruction(
             pub struct CreateAmmConfig {
                 pub index: u16,
                 pub tick_spacing: u16,
-                pub trade_fee_rate: u32,
+                pub trade_fee_flat: u64,
                 pub protocol_fee_rate: u32,
                 pub fund_fee_rate: u32,
             }
@@ -367,7 +367,7 @@ pub fn handle_program_instruction(
                     CreateAmmConfig {
                         index: instr.index,
                         tick_spacing: instr.tick_spacing,
-                        trade_fee_rate: instr.trade_fee_rate,
+                        trade_fee_flat: instr.trade_fee_flat,
                         protocol_fee_rate: instr.protocol_fee_rate,
                         fund_fee_rate: instr.fund_fee_rate,
                     }
@@ -380,7 +380,7 @@ pub fn handle_program_instruction(
             #[derive(Debug)]
             pub struct UpdateAmmConfig {
                 pub param: u8,
-                pub value: u32,
+                pub value: u64,
             }
             impl From<instruction::UpdateAmmConfig> for UpdateAmmConfig {
                 fn from(instr: instruction::UpdateAmmConfig) -> UpdateAmmConfig {

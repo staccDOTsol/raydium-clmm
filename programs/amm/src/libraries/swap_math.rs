@@ -20,7 +20,7 @@ pub fn compute_swap_step(
     sqrt_price_target_x64: u128,
     liquidity: u128,
     amount_remaining: u64,
-    fee_rate: u32,
+    flat_fee: u64,
     is_base_input: bool,
     zero_for_one: bool,
     block_timestamp: u32,
@@ -30,12 +30,7 @@ pub fn compute_swap_step(
     if is_base_input {
         // round up amount_in
         // In exact input case, amount_remaining is positive
-        let amount_remaining_less_fee = (amount_remaining as u64)
-            .mul_div_floor(
-                (FEE_RATE_DENOMINATOR_VALUE - fee_rate).into(),
-                u64::from(FEE_RATE_DENOMINATOR_VALUE),
-            )
-            .unwrap();
+        let amount_remaining_less_fee = amount_remaining.saturating_sub(flat_fee);
 
         let amount_in = calculate_amount_in_range(
             sqrt_price_current_x64,
@@ -140,14 +135,7 @@ pub fn compute_swap_step(
                 .checked_sub(swap_step.amount_in)
                 .unwrap()
         } else {
-            // take pip percentage as fee
-            swap_step
-                .amount_in
-                .mul_div_ceil(
-                    fee_rate.into(),
-                    (FEE_RATE_DENOMINATOR_VALUE - fee_rate).into(),
-                )
-                .unwrap()
+            flat_fee
         };
 
     Ok(swap_step)
@@ -302,7 +290,7 @@ mod swap_math_test {
             sqrt_price_target_x64 in tick_math::MIN_SQRT_PRICE_X64..tick_math::MAX_SQRT_PRICE_X64,
             liquidity in 1..u32::MAX as u128,
             amount_remaining in 1..u64::MAX,
-            fee_rate in 1..FEE_RATE_DENOMINATOR_VALUE/2,
+            flat_fee in 1..1_000_000u64,
             is_base_input in proptest::bool::ANY,
         ) {
             prop_assume!(sqrt_price_current_x64 != sqrt_price_target_x64);
@@ -313,7 +301,7 @@ mod swap_math_test {
                 sqrt_price_target_x64,
                 liquidity,
                 amount_remaining,
-                fee_rate,
+                flat_fee,
                 is_base_input,
                 zero_for_one,
                 1,

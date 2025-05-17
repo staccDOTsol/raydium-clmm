@@ -20,7 +20,7 @@ pub fn create_amm_config_instr(
     config: &ClientConfig,
     config_index: u16,
     tick_spacing: u16,
-    trade_fee_rate: u32,
+    trade_fee_flat: u64,
     protocol_fee_rate: u32,
     fund_fee_rate: u32,
 ) -> Result<Vec<Instruction>> {
@@ -43,7 +43,7 @@ pub fn create_amm_config_instr(
         .args(raydium_instruction::CreateAmmConfig {
             index: config_index,
             tick_spacing,
-            trade_fee_rate,
+            trade_fee_flat,
             protocol_fee_rate,
             fund_fee_rate,
         })
@@ -56,7 +56,7 @@ pub fn update_amm_config_instr(
     amm_config: Pubkey,
     remaining_accounts: Vec<AccountMeta>,
     param: u8,
-    value: u32,
+    value: u64,
 ) -> Result<Vec<Instruction>> {
     let payer = read_keypair_file(&config.payer_path)?;
     let admin = read_keypair_file(&config.admin_path)?;
