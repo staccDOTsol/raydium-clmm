@@ -33,7 +33,7 @@ pub fn create_amm_config(
     ctx: Context<CreateAmmConfig>,
     index: u16,
     tick_spacing: u16,
-    trade_fee_rate: u32,
+    trade_fee_flat: u64,
     protocol_fee_rate: u32,
     fund_fee_rate: u32,
 ) -> Result<()> {
@@ -41,7 +41,7 @@ pub fn create_amm_config(
     amm_config.owner = ctx.accounts.owner.key();
     amm_config.bump = ctx.bumps.amm_config;
     amm_config.index = index;
-    amm_config.trade_fee_rate = trade_fee_rate;
+    amm_config.trade_fee_flat = trade_fee_flat;
     amm_config.protocol_fee_rate = protocol_fee_rate;
     amm_config.tick_spacing = tick_spacing;
     amm_config.fund_fee_rate = fund_fee_rate;
@@ -51,7 +51,7 @@ pub fn create_amm_config(
         index: amm_config.index,
         owner: ctx.accounts.owner.key(),
         protocol_fee_rate: amm_config.protocol_fee_rate,
-        trade_fee_rate: amm_config.trade_fee_rate,
+        trade_fee_flat: amm_config.trade_fee_flat,
         tick_spacing: amm_config.tick_spacing,
         fund_fee_rate: amm_config.fund_fee_rate,
         fund_owner: amm_config.fund_owner,

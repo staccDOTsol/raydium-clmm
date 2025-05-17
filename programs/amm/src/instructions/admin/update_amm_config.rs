@@ -13,11 +13,11 @@ pub struct UpdateAmmConfig<'info> {
     pub amm_config: Account<'info, AmmConfig>,
 }
 
-pub fn update_amm_config(ctx: Context<UpdateAmmConfig>, param: u8, value: u32) -> Result<()> {
+pub fn update_amm_config(ctx: Context<UpdateAmmConfig>, param: u8, value: u64) -> Result<()> {
     let amm_config = &mut ctx.accounts.amm_config;
     let match_param = Some(param);
     match match_param {
-        Some(0) => update_trade_fee_rate(amm_config, value),
+        Some(0) => update_trade_fee_flat(amm_config, value),
         Some(1) => update_protocol_fee_rate(amm_config, value),
         Some(2) => update_fund_fee_rate(amm_config, value),
         Some(3) => {
@@ -34,7 +34,7 @@ pub fn update_amm_config(ctx: Context<UpdateAmmConfig>, param: u8, value: u32) -
     emit!(ConfigChangeEvent {
         index: amm_config.index,
         owner: amm_config.owner,
-        trade_fee_rate: amm_config.trade_fee_rate,
+        trade_fee_flat: amm_config.trade_fee_flat,
         protocol_fee_rate: amm_config.protocol_fee_rate,
         tick_spacing: amm_config.tick_spacing,
         fund_fee_rate: amm_config.fund_fee_rate,
@@ -50,9 +50,8 @@ fn update_protocol_fee_rate(amm_config: &mut Account<AmmConfig>, protocol_fee_ra
     amm_config.protocol_fee_rate = protocol_fee_rate;
 }
 
-fn update_trade_fee_rate(amm_config: &mut Account<AmmConfig>, trade_fee_rate: u32) {
-    assert!(trade_fee_rate < FEE_RATE_DENOMINATOR_VALUE);
-    amm_config.trade_fee_rate = trade_fee_rate;
+fn update_trade_fee_flat(amm_config: &mut Account<AmmConfig>, trade_fee_flat: u64) {
+    amm_config.trade_fee_flat = trade_fee_flat;
 }
 
 fn update_fund_fee_rate(amm_config: &mut Account<AmmConfig>, fund_fee_rate: u32) {

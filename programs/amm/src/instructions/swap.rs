@@ -302,7 +302,7 @@ pub fn swap_internal<'b, 'info>(
             target_price,
             state.liquidity,
             state.amount_specified_remaining,
-            amm_config.trade_fee_rate,
+            amm_config.trade_fee_flat,
             is_base_input,
             zero_for_one,
             block_timestamp,
@@ -832,7 +832,7 @@ mod swap_test {
         RefCell<ObservationState>,
     ) {
         let amm_config = AmmConfig {
-            trade_fee_rate: 1000,
+            trade_fee_flat: 1000,
             tick_spacing,
             ..Default::default()
         };
@@ -881,7 +881,7 @@ mod swap_test {
         u64,
     ) {
         let amm_config = AmmConfig {
-            trade_fee_rate: 1000,
+            trade_fee_flat: 1000,
             tick_spacing,
             ..Default::default()
         };
