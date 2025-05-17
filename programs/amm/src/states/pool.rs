@@ -21,6 +21,8 @@ pub const POOL_REWARD_VAULT_SEED: &str = "pool_reward_vault";
 pub const POOL_TICK_ARRAY_BITMAP_SEED: &str = "pool_tick_array_bitmap_extension";
 // Number of rewards Token
 pub const REWARD_NUM: usize = 3;
+/// Fee charged when creating a new pool. Set to zero to disable
+pub const POOL_CREATION_FEE_LAMPORTS: u64 = 0;
 
 #[cfg(feature = "paramset")]
 pub mod reward_period_limit {
