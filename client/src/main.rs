@@ -58,6 +58,7 @@ pub struct ClientConfig {
     admin_path: String,
     raydium_v3_program: Pubkey,
     slippage: f64,
+    fee_receiver: Pubkey,
     amm_config_key: Pubkey,
 
     mint0: Option<Pubkey>,
@@ -103,6 +104,11 @@ fn load_cfg(client_config: &String) -> Result<ClientConfig> {
     }
     let raydium_v3_program = Pubkey::from_str(&raydium_v3_program_str).unwrap();
     let slippage = config.getfloat("Global", "slippage").unwrap().unwrap();
+    let fee_receiver_str = config.get("Global", "fee_receiver").unwrap();
+    if fee_receiver_str.is_empty() {
+        panic!("fee_receiver must not be empty");
+    }
+    let fee_receiver = Pubkey::from_str(&fee_receiver_str).unwrap();
 
     let mut mint0 = None;
     let mint0_str = config.get("Pool", "mint0").unwrap();
@@ -167,6 +173,7 @@ fn load_cfg(client_config: &String) -> Result<ClientConfig> {
         admin_path,
         raydium_v3_program,
         slippage,
+        fee_receiver,
         amm_config_key,
         mint0,
         mint1,
