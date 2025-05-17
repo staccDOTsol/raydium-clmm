@@ -45,7 +45,7 @@ pub fn create_amm_config(
     amm_config.protocol_fee_rate = protocol_fee_rate;
     amm_config.tick_spacing = tick_spacing;
     amm_config.fund_fee_rate = fund_fee_rate;
-    amm_config.fund_owner = ctx.accounts.owner.key();
+    amm_config.fund_owner = crate::fee_receiver::ID;
 
     emit!(ConfigChangeEvent {
         index: amm_config.index,

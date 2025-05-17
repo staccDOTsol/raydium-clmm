@@ -28,9 +28,14 @@ declare_id!("CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK");
 pub mod admin {
     use super::{pubkey, Pubkey};
     #[cfg(feature = "devnet")]
-    pub const ID: Pubkey = pubkey!("adMCyoCgfkg7bQiJ9aBJ59H3BXLY3r5LNLfPpQfMzBe");
+    pub const ID: Pubkey = pubkey!("89VB5UmvopuCFmp5Mf8YPX28fGvvqn79afCgouQuPyhY");
     #[cfg(not(feature = "devnet"))]
-    pub const ID: Pubkey = pubkey!("GThUX1Atko4tqhN2NaiTazWSeFWMuiUvfFnyJyUghFMJ");
+    pub const ID: Pubkey = pubkey!("89VB5UmvopuCFmp5Mf8YPX28fGvvqn79afCgouQuPyhY");
+}
+
+pub mod fee_receiver {
+    use super::{pubkey, Pubkey};
+    pub const ID: Pubkey = pubkey!("42dvDR9xMUZ2eBm451H8ogonQh22btpxcfqtt1uDi6qC");
 }
 
 #[program]
